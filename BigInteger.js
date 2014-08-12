@@ -7,6 +7,10 @@
  *                         digits. If it is an array, this is taken as the digits array. If number
  *                         is null or undefined, a BigInteger with a value of zero is created.
  *
+ *                         Note that leading zeroes are not permitted in the array of digits for a
+ *                         BigInteger. Therefore, a BigInteger with a value of zero contains an
+ *                         empty digit array.
+ *
  *
  * @param {Boolean} negative Only required when the parameter 'number' is of type Array. True if the
  *                           BigInteger is negative, false otherwise.
@@ -34,6 +38,7 @@ function BigInteger(number, negative) {
 
         this.numberString = number;
 
+        // Determine if the number is negative.
         if (number.charAt(0) === '-') {
             number = number.substr(1);
             this.negative = true;
@@ -41,6 +46,14 @@ function BigInteger(number, negative) {
             this.negative = false;
         }
 
+        // Check if the number is simply zero.
+        if (isZeroString(number)) {
+            this.digits = [];
+            this.negative = false;
+            return;
+        }
+
+        // Parse the digits of the number.
         var numDigits = Math.ceil(number.length / this.logbase);
         this.digits = new Array(numDigits);
 
@@ -78,6 +91,23 @@ function BigInteger(number, negative) {
 
 
 /**
+ * Checks if a string represents zero. Instead of simply using parseInt(string) === 0, this function
+ * is used in case the string is not able to be parse to an integer.
+ *
+ * @param  {String}  str The string to check.
+ *
+ * @return {Boolean} True if the string represents zero, false otherwise.
+ */
+function isZeroString(str) {
+    for (var i = 0; i < str.length; i++) {
+        if (str.charAt(i) != '0')
+            return false;
+    }
+    return true;
+}
+
+
+/**
  * Converts the value of this BigInteger to a string.
  *
  * @return {String} A String representation of this BigInteger.
@@ -88,14 +118,17 @@ BigInteger.prototype.toString = function() {
     if (this.numberString != null)
         return this.numberString;
 
-    // If the BigInteger was constructed with an Array of digits, the
-    // string must be built manually.
+    // Return zero for a BigInteger with an empty digit array.
+    if (this.digits.length === 0)
+        return "0";
+
+    // If the BigInteger was constructed with an Array of digits, the string must be built manually.
     var string = "";
     for (var i = 0; i < this.digits.length - 1; i++) {
         var digitString = (this.digits[i] + this.base).toString();
         string = digitString.substr(1, digitString.length) + string;
     }
-    string = this.digits[i] + string;
+    string = this.digits[this.digits.length - 1] + string;
 
     return (this.negative ? "-" : "") + string;
 }
@@ -156,6 +189,7 @@ function longAddition(firstNumber, secondNumber) {
         newDigits[i] = result;
     }
 
+    // Add an extra digit if the carry is not zero.
     if (carry != 0)
         newDigits[numDigits] = carry;
 
@@ -255,15 +289,22 @@ function subtractionByComplement(minuend, subtrahend) {
     var msd = result.digits[msdIndex]
         - Math.pow(10, Math.floor(Math.log(result.digits[msdIndex]) / Math.LN10));
 
-    // Removing leading zeros if they have been introduced by reducing the msd.
-    if (msd === 0) {
-        result.digits.length--;
-        while (result.digits[result.digits.length - 1] === 0 && result.digits.length > 1)
-            result.digits.length--;
-    } else
-        result.digits[msdIndex] = msd;
+    result.digits[msdIndex] = msd;
+
+    stripLeadingZeroDigits(result);
 
     return result;
+}
+
+
+/**
+ * Removes the leading zeros from the digit array of a BigInteger.
+ *
+ * @param  {BigInteger} number The BigInteger to be stripped.
+ */
+function stripLeadingZeroDigits(number) {
+    while (number.digits[number.digits.length - 1] === 0)
+        number.digits.length--;
 }
 
 
@@ -751,6 +792,11 @@ var numNeg7E16 = new BigInteger("-70000000000000000");
 var numNeg2E16 = new BigInteger("-20000000000000000");
 
 
+/** Test the constructor **/
+
+console.assert((new BigInteger("0")).equals(new BigInteger(0)));
+
+
 /** Test BigInteger.toString() **/
 
 // Test toString() with an empty constructor.
@@ -897,5 +943,11 @@ console.assert(num4E20.divide(num7E16).equals(new BigInteger(5714)));
 
 // Test division with a two numbers that have equal first digits (but do not divide cleanly).
 console.assert(num2E16.divide(new BigInteger("2000000000001234")).equals(new BigInteger(9)));
+
+
+/** Test BigInteger.modulo(...) **/
+//alert(num7E16.modulo(num7E16).digits);
+// Test modulo with the same number.
+console.assert(num7E16.modulo(num7E16).equals(new BigInteger(0)));
 
 console.log("Testing complete.");
