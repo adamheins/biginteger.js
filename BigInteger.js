@@ -1,18 +1,36 @@
-/* TODO
- * Finish commenting
- * Proper formatting
- * Add checking for array and string type in constructor
- * Have constructor handle no parameters
- */
 
+/**
+ * Arbitrary-sized integer.
+ *
+ * @param {String, Number, or Array} number A representation of the magnitude of the BigInteger.
+ *                         If the number is a Number or string, it is parsed into the BigInteger's
+ *                         digits. If it is an array, this is taken as the digits array. If number
+ *                         is null or undefined, a BigInteger with a value of zero is created.
+ *
+ *
+ * @param {Boolean} negative Only required when the parameter 'number' is of type Array. True if the
+ *                           BigInteger is negative, false otherwise.
+ *
+ * @author Adam Heins
+ */
 function BigInteger(number, negative) {
 
-
+    // The base of the BigInteger. Each digit cannot be larger than this base. A base of 1,000,000
+    // was chosen because 1,000,000 ^ 2 still fits nicely into a native Number object (useful for
+    // multiplication).
     this.base = 1000000;
+
+    // The base 10 logarithm of the base.
     this.logbase = 6;
 
+    // Null or undefined parameters results in a BigInteger of 0.
+    if (number === null || number === undefined) {
+        this.digits = [];
+        this.numberString = "0";
+        this.negative = false;
+
     // Number is a string.
-    if (typeof number === "string") {
+    } else if (typeof number === "string") {
 
         this.numberString = number;
 
@@ -31,7 +49,8 @@ function BigInteger(number, negative) {
         this.digits[numDigits - 1] = parseInt(number.substr(0, excess));
 
         for (var i = 1; i < numDigits; i++) {
-            this.digits[i - 1] = parseInt(number.substr(number.length - this.logbase * i, this.logbase));
+            this.digits[i - 1] = parseInt(number.substr(number.length - this.logbase * i,
+                this.logbase));
         }
 
     // Number is actually a number.
@@ -59,7 +78,9 @@ function BigInteger(number, negative) {
 
 
 /**
- * Returns the value of this BigInteger as a string.
+ * Converts the value of this BigInteger to a string.
+ *
+ * @return {String} A String representation of this BigInteger.
  */
 BigInteger.prototype.toString = function() {
 
@@ -80,13 +101,21 @@ BigInteger.prototype.toString = function() {
 }
 
 
-BigInteger.prototype.add = function(other) { //TODO remove redundancy my manually handling subtraction cases (only calls to subtractByComplements should be made)
+/**
+ * Calculates the sum of this BigInteger and another one. This function calls other private addition
+ * and subtraction functions depending on the signs of the numbers.
+ *
+ * @param {BigInteger} other The BigInteger being added to this one.
+ *
+ * @return {BigInteger} The sum of this BigInteger and 'other'.
+ */
+BigInteger.prototype.add = function(other) {
     if (this.negative && other.negative) {
-        var result = this.addBackend(other);
+        var result = longAddition(this, other);
         result.negative = true;
         return result;
     } else if (!this.negative && !other.negative) {
-        var result = this.addBackend(other);
+        var result = longAddition(this, other);
         result.negative = false;
         return result;
     } else if (this.negative && !other.negative) {
@@ -100,26 +129,30 @@ BigInteger.prototype.add = function(other) { //TODO remove redundancy my manuall
 
 
 /**
- * Add another BigInteger to this one, returning the sum as a new
- * BigInteger.
+ * Calculates the sum of two BigIntegers using a standard long addition algorithm.
+ *
+ * @param  {BigInteger} firstNumber  The first BigInteger being added.
+ * @param  {BigInteger} secondNumber The second BigInteger being added.
+ *
+ * @return {BigInteger} The sum.
  */
-BigInteger.prototype.addBackend = function(other) { //TODO rename
+function longAddition(firstNumber, secondNumber) {
     var newDigits = [];
 
-    var numDigits = Math.max(this.digits.length, other.digits.length);
+    var numDigits = Math.max(firstNumber.digits.length, secondNumber.digits.length);
     var carry = 0;
 
     for (var i = 0; i < numDigits; i++) {
         var result;
-        if (i >= this.digits.length)
-            result = other.digits[i] + carry;
-        else if (i >= other.digits.length)
-            result = this.digits[i] + carry;
+        if (i >= firstNumber.digits.length)
+            result = secondNumber.digits[i] + carry;
+        else if (i >= secondNumber.digits.length)
+            result = firstNumber.digits[i] + carry;
         else
-            result = this.digits[i] + other.digits[i] + carry;
+            result = firstNumber.digits[i] + secondNumber.digits[i] + carry;
 
-        carry = Math.floor(result / this.base);
-        result = result % this.base;
+        carry = Math.floor(result / firstNumber.base);
+        result = result % firstNumber.base;
         newDigits[i] = result;
     }
 
@@ -130,41 +163,54 @@ BigInteger.prototype.addBackend = function(other) { //TODO rename
 }
 
 
+/**
+ * Calculates the difference between this BigInteger and another one. This function makes calls to
+ * private addition and subtraction functions depending on the signs and magnitudes of the numbers
+ * involved.
+ *
+ * @param  {BigInteger} other The BigInteger that is subtracted from this one.
+ *
+ * @return {BigInteger} The difference.
+ */
 BigInteger.prototype.subtract = function(other) {
 
     if (this.negative) {
         if (other.negative) {
             if (this.isLessThan(other)) {
+
                     // Subtract other from this, result negative.
-                    var result = this.subtractByComplement(other);
+                    var result = subtractionByComplement(this, other);
                     result.negative = true;
                     return result;
             } else {
+
                     // Subtract this from other, result positive.
-                    var result = other.subtractByComplement(this);
+                    var result = subtractionByComplement(other, this);
                     result.negative = false;
                     return result;
             }
         } else {
-            var result = this.addBackend(other);
+            var result = longAddition(this, other);
             result.negative = true;
             return result;
         }
     } else {
         if (other.negative) {
-            var result = this.addBackend(other);
+            var result = longAddition(this, other);
             result.negative = false;
             return result;
         } else {
 
             if (this.isGreaterThan(other) || this.equals(other)) {
+
                     // Subtract other from this, result negative.
-                    var result = this.subtractByComplement(other);
+                    var result = subtractionByComplement(this, other);
                     result.negative = false;
                     return result;
             } else {
+
                     // Subtract this from other, result positive.
-                    var result = other.subtractByComplement(this);
+                    var result = subtractionByComplement(other, this);
                     result.negative = true;
                     return result;
             }
@@ -174,35 +220,40 @@ BigInteger.prototype.subtract = function(other) {
 
 
 /**
- * Subtract another BigInteger from this one, using the method
- * of complements. The difference is returned as a new BigInteger.
+ * Calculates the difference between this BigInteger and another one, using the method of
+ * complements.
+ *
+ * @param  {BigInteger} other The BigInteger to substract from this one.
+ *
+ * @return {Number} The difference, which is always returned in absolute form.
  */
-BigInteger.prototype.subtractByComplement = function(other) {
+function subtractionByComplement(minuend, subtrahend) {
 
     // Create positive version of this and the other.
-    var positiveThis = new BigInteger(this.digits, false);
-    var positiveOther = new BigInteger(other.digits, false);
+    var posMinuend = new BigInteger(minuend.digits, false);
+    var posSubtrahend = new BigInteger(subtrahend.digits, false);
 
     // Return a copy of this BigInteger if the other number is zero/empty.
-    if (positiveOther.digits.length === 0)
-        return new BigInteger(positiveThis.digits);
+    if (posSubtrahend.digits.length === 0)
+        return new BigInteger(posMinuend.digits);
 
-    var newDigits = new Array(positiveOther.digits.size);
+    var newDigits = new Array(posSubtrahend.digits.size);
     var complement = new BigInteger(newDigits, false);
 
     // Compute the complement of the subtrahend.
-    for (var i = 0; i < positiveOther.digits.length; i++)
-        complement.digits[i] = positiveThis.base - 1 - positiveOther.digits[i];
+    for (var i = 0; i < posSubtrahend.digits.length; i++)
+        complement.digits[i] = posMinuend.base - 1 - posSubtrahend.digits[i];
 
     // Add this and complement.
-    var result = positiveThis.add(complement);
+    var result = posMinuend.add(complement);
 
     // Add one to the result.
     result = result.add(new BigInteger("1"));
 
     // Subtract one from the most significant digits.
     var msdIndex = result.digits.length - 1;
-    var msd = result.digits[msdIndex] - Math.pow(10, Math.floor(Math.log(result.digits[msdIndex]) / Math.LN10));
+    var msd = result.digits[msdIndex]
+        - Math.pow(10, Math.floor(Math.log(result.digits[msdIndex]) / Math.LN10));
 
     // Removing leading zeros if they have been introduced by reducing the msd.
     if (msd === 0) {
@@ -217,7 +268,11 @@ BigInteger.prototype.subtractByComplement = function(other) {
 
 
 /**
- * Multiplies this BigInteger with another BigInteger and returns the product.
+ * Calculates the product of this BigInteger multiplied by another.
+ *
+ * @param  {BigInteger} other The BigInteger by which this one will be multiplied.
+ *
+ * @return {BigInteger} The product of the multiplication.
  */
 BigInteger.prototype.multiply = function(other) {
 
@@ -235,8 +290,14 @@ BigInteger.prototype.multiply = function(other) {
 
 
 /**
- * Multiply a BigInteger by a single digit, and giving it an appropriate order of
- * magnitude.
+ * Multiplies a BigInteger by a single digit, and gives it additional magnitude.
+ *
+ * @param  {BigInteger} number  The BigInteger to be multiplied.
+ * @param  {Number} digit       The digit by which 'number' is being multiplied.
+ * @param  {Number} magnitude   The number of additional digits with value 0 to prepend to the
+ *                                  digit array of the result.
+ *
+ * @return {BigInteger} The result of the multiplication.
  */
 function multiplyOneDigit(number, digit, magnitude) {
 
@@ -266,12 +327,24 @@ function multiplyOneDigit(number, digit, magnitude) {
 }
 
 
-
-// TODO if number is zero, negative should always be false.
-
+/**
+ * Calculates this BigInteger raised to the power of another.
+ *
+ * @param  {BigInteger} other The exponent.
+ *
+ * @return {BigInteger} The result.
+ */
 BigInteger.prototype.pow = function(other) {
 
-
+    /**
+     * Calculates the result of one BigInteger raised to the power of another using the
+     * exponentiation by squaring method.
+     *
+     * @param  {BigInteger} base The base.
+     * @param  {BigInteger} exponent The exponent.
+     *
+     * @return {BigInteger} The result.
+     */
     function exponentiationBySquaring(base, exponent) {
         if (exponent.equals("0"))
             return new BigInteger("1");
@@ -280,7 +353,8 @@ BigInteger.prototype.pow = function(other) {
         else if (exponents.digits[0] % 2 === 0)
             return expBySquaring(base.multiply(base), exponent.divideByNativeNumber(2));
         else
-            return base.multiply(expBySquaring(base.multiply(base), exponent.subtract(new BigInteger("1")).divide(2)));
+            return base.multiply(expBySquaring(base.multiply(base),
+                exponent.subtract(new BigInteger("1")).divide(2)));
     }
 
     return exponentiationBySquaring(this, other);
@@ -288,9 +362,14 @@ BigInteger.prototype.pow = function(other) {
 
 
 /**
- * Returns the quotient of a BigInteger divided by a native JS Number object.
+ * Calculates the quotient of a BigInteger divided by a native JS Number object.
  * The number should be at most equal to the maximum value of base * carry + digit,
  * which means it is less than BigInteger.base squared.
+ *
+ * @param  {BigIngteger} bigIntegerDividend The BigInteger to be divided.
+ * @param  {Number} number                  The number by which the BigInteger is to be divided.
+ *
+ * @return {BigInteger} The quotient.
  */
 function divideByNativeNumber(bigIntegerDividend, number) {
 
@@ -320,6 +399,16 @@ function divideByNativeNumber(bigIntegerDividend, number) {
  * divisor. If only one is available, then just it is used. Occasionally, when
  * the digits of the dividend are less than the divisor, we use three digits in
  * the divisor.
+ *
+ * @param  {BigInteger} dividend          The dividend.
+ * @param  {Number} firstTwoDivisorDigits The value of the first two digits of the divisor. These
+ *                                            are not calculated in this function because they
+ *                                            are static for the entire division and modulo
+ *                                            algorithms.
+ * @param  {Boolean} useThreeDigits       True if three digits should be taken into account for the
+ *                                            divisor, false otherwise.
+ *
+ * @return {Number} The value of the trial digit.
  */
 function trialDigit(dividend, firstTwoDivisorDigits, useThreeDigits) {
 
@@ -338,7 +427,8 @@ function trialDigit(dividend, firstTwoDivisorDigits, useThreeDigits) {
  * is empty. If there is only one digit, returns the value of that digit.
  *
  * @param  {BigInteger} number The BigInteger from which the first two digits are taken.
- * @return {[type]}        [description]
+ *
+ * @return {Number} The value of the first two digits of 'number'.
  */
 function firstTwoDigits(number) {
     var size = number.digits.length;
@@ -550,8 +640,6 @@ BigInteger.prototype.toNumber = function() {
 }
 
 
-
-
 /**
  * Checks for equality of this BigInteger and another one.
  *
@@ -574,7 +662,7 @@ BigInteger.prototype.equals = function(other) {
         return false;
 
     // Compare each digit.
-    for (var i = this.digits.length - 1; i >= 0; i++) {
+    for (var i = this.digits.length - 1; i >= 0; i--) {
         if (this.digits[i] != other.digits[i])
             return false;
     }
@@ -584,8 +672,11 @@ BigInteger.prototype.equals = function(other) {
 
 
 /**
- * Checks if this BigInteger is greater than another BigInteger. Returns
- * true if this BigInteger is greater, false otherwise.
+ * Checks if this BigInteger is larger than another BigInteger.
+ *
+ * @param  {BigInteger}  other The BigInteger to which this one is being compared.
+ *
+ * @return {Boolean} True if this BigInteger is larger than 'other', false otherwise.
  */
 BigInteger.prototype.isGreaterThan = function(other) {
 
@@ -596,31 +687,38 @@ BigInteger.prototype.isGreaterThan = function(other) {
     // Compare signs.
     if (this.negative && !other.negative)
         return false;
-    else if (!this.negative && other.negative)
+    if (!this.negative && other.negative)
         return true;
-    else if (this.negative && other.negative) {
+    if (this.negative && other.negative) {
         var positiveThis = new BigInteger(this.digits, false);
         var positiveOther = new BigInteger(other.digits, false);
         return positiveThis.isLessThan(positiveOther);
     }
 
-    var thisString = this.toString();
-    var otherString = other.toString();
-
-    // Compare string length.
-    if (thisString.length > otherString.length)
+    // Compare number of digits.
+    if (this.digits.length > other.digits.length)
         return true;
-    else if (thisString.length < otherString.length)
+    if (this.digits.length < other.digits.length)
         return false;
 
-    // Compare strings lexicographically.
-    return thisString > otherString;
+    // Compare each digit.
+    for (var i = this.digits.length - 1; i >= 0; i--) {
+        if (this.digits[i] < other.digits[i])
+            return false;
+        if (this.digits[i] > other.digits[i])
+            return true;
+    }
+
+    return true;
 }
 
 
 /**
- * Checks if this BigInteger is less than another BigInteger. Returns
- * true if this BigInteger is less, false otherwise.
+ * Checks if this BigInteger is less than another BigInteger.
+ *
+ * @param  {BigInteger} other The BigInteger to which this one is being compared.
+ *
+ * @return {Boolean} True if this BigInteger is less than other, false otherwise.
  */
 BigInteger.prototype.isLessThan = function(other) {
 
@@ -654,6 +752,9 @@ var numNeg2E16 = new BigInteger("-20000000000000000");
 
 
 /** Test BigInteger.toString() **/
+
+// Test toString() with an empty constructor.
+console.assert((new BigInteger()).toString() === "0")
 
 // Test BigInteger.toString() with positive number, multiple digits.
 console.assert(num9E6.toString() === "9000000");
