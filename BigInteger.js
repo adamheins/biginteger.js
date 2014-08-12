@@ -87,6 +87,49 @@ function BigInteger(number, negative) {
         this.negative = negative;
         this.numberString = null;
     }
+
+}
+
+
+// Useful, common constants.
+BigInteger.ZERO = new BigInteger();
+BigInteger.ONE = new BigInteger(1);
+BigInteger.TWO = new BigInteger(2);
+BigInteger.THREE = new BigInteger(3);
+BigInteger.TEN = new BigInteger(10)
+BigInteger.NEGATIVE_ONE = new BigInteger(-1);
+
+
+/**
+ * Generates a random BigInteger in the range [0, limit).
+ *
+ * @param  {BigInteger} limit The upper bound of the generated random number (exclusive).
+ *
+ * @return {BigInteger} A random BigInteger in the range [0, limit).
+ */
+BigInteger.random = function(limit) {
+
+    /**
+     * Generates a random number in [0, numLim).
+     */
+    function randomNumber(numLim) {
+        return Math.floor(Math.random() * numLim);
+    }
+
+    var randDigits = new Array(limit.digits.length);
+
+    // Put a random number in every digit of the BigInteger.
+    randDigits[randDigits.length - 1] = randomNumber(limit.digits[limit.digits.length - 1]);
+
+    for (var i = 0; i < randDigits.length - 1; i++)
+        randDigits[i] = randomNumber(limit.base);
+
+    var randomBigInteger = new BigInteger(randDigits, false);
+
+    // Leading zeroes may have been created as random numbers. Strip them.
+    stripLeadingZeroDigits(randomBigInteger);
+
+    return randomBigInteger;
 }
 
 
@@ -794,7 +837,9 @@ var numNeg2E16 = new BigInteger("-20000000000000000");
 
 /** Test the constructor **/
 
-console.assert((new BigInteger("0")).equals(new BigInteger(0)));
+console.assert((new BigInteger("0")).equals(BigInteger.ZERO));
+
+console.assert((new BigInteger(0)).equals(BigInteger.ZERO));
 
 
 /** Test BigInteger.toString() **/
@@ -946,8 +991,11 @@ console.assert(num2E16.divide(new BigInteger("2000000000001234")).equals(new Big
 
 
 /** Test BigInteger.modulo(...) **/
-//alert(num7E16.modulo(num7E16).digits);
+
 // Test modulo with the same number.
 console.assert(num7E16.modulo(num7E16).equals(new BigInteger(0)));
+
+// Test modulo with smaller number % larger number.
+console.assert(num2E16.modulo(num7E16).equals(num2E16));
 
 console.log("Testing complete.");
