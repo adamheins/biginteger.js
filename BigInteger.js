@@ -88,6 +88,130 @@ function BigInteger(number, negative) {
         this.numberString = null;
     }
 
+
+    /**
+     * Calculates the modulus of this BigInteger raised to some power.
+     *
+     * @param  {BigInteger} exponent The exponent to which this BigInteger is raised.
+     * @param  {BigInteger} modulus  The modulus.
+     *
+     * @return {BigInteger} The result of the modPow operation.
+     */
+    this.modPow = function(exponent, modulus) {
+
+        var x = BigInteger.ONE;
+        var a = this;
+        var e = exponent;
+
+        while (e.compare(BigInteger.ZERO) > 0) {
+            if (e.isEven()) {
+                a = a.multiply(a).modulo(modulus);
+                e = divideByNativeNumber(e, 2);
+            } else {
+                x = x.multiply(a).modulo(modulus);
+                e = e.subtract(BigInteger.ONE);
+            }
+        }
+
+        return x;
+    }
+
+
+    /**
+     * Convenience method that indicates whether or not this BigInteger is even. Significantly
+     * cheaper than performing BigInteger.modulo(2).
+     *
+     * @return {Boolean} True if this BigInteger is even, false if it is odd.
+     */
+    this.isEven = function() {
+        if (this.digits.length === 0)
+            return true;
+        return (this.digits[0] % 2 === 0);
+    }
+
+
+    /**
+     * Compares this BigInteger with another BigInteger.
+     *
+     * @param  {BigInteger} other The BigInteger to which this one is compared.
+     *
+     * @return {Number} Positive if this BigInteger is greater than 'other', 0 if they are equal,
+     *                           or negative if this BigInteger is less than 'other'.
+     */
+    this.compare = function (other) {
+
+        // Check if other is null, undefined, or not a BigInteger.
+        if (other === null || other === undefined || other.constructor !== BigInteger)
+            throw "Object being compared is not a valid BigInteger.";
+
+        // Compare signs.
+        if (this.negative && !other.negative)
+            return -1;
+        if (!this.negative && other.negative)
+            return 1;
+
+        // Compare lengths.
+        if (this.negative) {
+            if (this.digits.length > other.digits.length)
+                return -1;
+            if (this.digits.length < other.digits.length)
+                return 1;
+        } else {
+            if (this.digits.length > other.digits.length)
+                return 1;
+            if (this.digits.length < other.digits.length)
+                return -1;
+        }
+
+        // Subtract to compare magnitude.
+        var result = this.subtract(other);
+        if (result.digits.length === 0)
+            return 0;
+        return result.negative ? -1 : 1;
+    }
+
+
+    this.isPrime = function() {
+
+        if(this.isEven() || this.modulo(BigInteger.THREE) === 0)
+            return false;
+
+        var k = 5;
+
+        var count = 0;
+        var nSub1 = this.subtract(BigInteger.ONE);
+        var d = nSub1;
+
+        while (d.isEven()) {
+            d = divideByNativeNumber(d, 2);
+            count++;
+        }
+
+        for (var i = 0; i < k; i++) {
+
+            // Random integer in [2, n - 2].
+            var a = BigInteger.random(this.subtract(BigInteger.THREE)).add(BigInteger.TWO);
+
+            var x = a.modPow(d, this);
+
+            if (x.equals(BigInteger.ONE) || x.equals(nSub1))
+                continue;
+
+            for (var j = 0; j < count - 1; j++) {
+                x = x.multiply(x).modulo(this);
+
+                if (x.equals(BigInteger.ONE))
+                    return false;
+
+                if (x.equals(nSub1))
+                    break;
+            }
+            if (!x.equals(nSub1))
+                return false;
+        }
+
+        return true;
+    }
 }
 
 
@@ -111,6 +235,10 @@ BigInteger.random = function(limit) {
 
     /**
      * Generates a random number in [0, numLim).
+     *
+     * @param  {Number} numLim The upper limit of the generated number (exclusive).
+     *
+     * @return {Number} A random number in [0, numLim).
      */
     function randomNumber(numLim) {
         return Math.floor(Math.random() * numLim);
@@ -143,7 +271,7 @@ BigInteger.random = function(limit) {
  */
 function isZeroString(str) {
     for (var i = 0; i < str.length; i++) {
-        if (str.charAt(i) != '0')
+        if (str.charAt(i) !== '0')
             return false;
     }
     return true;
@@ -158,7 +286,7 @@ function isZeroString(str) {
 BigInteger.prototype.toString = function() {
 
     // If the BigInteger was constructed from a string, simply return that.
-    if (this.numberString != null)
+    if (this.numberString !== null)
         return this.numberString;
 
     // Return zero for a BigInteger with an empty digit array.
@@ -233,7 +361,7 @@ function longAddition(firstNumber, secondNumber) {
     }
 
     // Add an extra digit if the carry is not zero.
-    if (carry != 0)
+    if (carry !== 0)
         newDigits[numDigits] = carry;
 
     return new BigInteger(newDigits, false);
@@ -325,18 +453,29 @@ function subtractionByComplement(minuend, subtrahend) {
     var result = posMinuend.add(complement);
 
     // Add one to the result.
-    result = result.add(new BigInteger("1"));
+    result = result.add(BigInteger.ONE);
 
     // Subtract one from the most significant digits.
     var msdIndex = result.digits.length - 1;
-    var msd = result.digits[msdIndex]
-        - Math.pow(10, Math.floor(Math.log(result.digits[msdIndex]) / Math.LN10));
+    //var msd = result.digits[msdIndex]
+    //    - Math.pow(10, Math.floor(Math.log(result.digits[msdIndex]) / Math.LN10));
+    var msd = result.digits[msdIndex] - 1;
 
     result.digits[msdIndex] = msd;
 
     stripLeadingZeroDigits(result);
 
     return result;
+}
+
+
+//TODO deal with later...
+BigInteger.prototype.clone = function() {
+    var array = new Array(this.digits.length);
+    for (var i = 0; i < array.length; i++) {
+        array[i] = this.digits[i];
+    }
+    return new BigInteger(array, this.negative);
 }
 
 
@@ -360,7 +499,7 @@ function stripLeadingZeroDigits(number) {
  */
 BigInteger.prototype.multiply = function(other) {
 
-    var result = new BigInteger("0");
+    var result = BigInteger.ZERO;
 
     // Add results of the long multiplication with each digit.
     for (var i = 0; i < other.digits.length; i++)
@@ -402,7 +541,7 @@ function multiplyOneDigit(number, digit, magnitude) {
     }
 
     // Add the carry as the msd if there is any.
-    if (carry != 0)
+    if (carry !== 0)
         newDigits[newDigits.length - 1] = carry;
     else
         newDigits.length = newDigits.length - 1;
@@ -412,36 +551,35 @@ function multiplyOneDigit(number, digit, magnitude) {
 
 
 /**
- * Calculates this BigInteger raised to the power of another.
+ * Calculates this BigInteger raised to the power of a number.
  *
- * @param  {BigInteger} other The exponent.
+ * @param  {Number} exponent The exponent.
  *
  * @return {BigInteger} The result.
  */
-BigInteger.prototype.pow = function(other) {
+BigInteger.prototype.pow = function(exponent) {
 
     /**
-     * Calculates the result of one BigInteger raised to the power of another using the
+     * Calculates the result of one BigInteger raised to the power of a number using the
      * exponentiation by squaring method.
      *
      * @param  {BigInteger} base The base.
-     * @param  {BigInteger} exponent The exponent.
+     * @param  {Number} exponent The exponent.
      *
      * @return {BigInteger} The result.
      */
     function exponentiationBySquaring(base, exponent) {
-        if (exponent.equals("0"))
-            return new BigInteger("1");
-        else if (exponent.equals("1"))
-            return new BigInteger(base.digits, base.negative);
-        else if (exponents.digits[0] % 2 === 0)
-            return expBySquaring(base.multiply(base), exponent.divideByNativeNumber(2));
+        if (exponent === 0)
+            return BigInteger.ONE;
+        else if (exponent === 1)
+            return base;
+        else if (exponent % 2 === 0)
+            return exponentiationBySquaring(base.multiply(base), exponent / 2);
         else
-            return base.multiply(expBySquaring(base.multiply(base),
-                exponent.subtract(new BigInteger("1")).divide(2)));
+            return base.multiply(exponentiationBySquaring(base.multiply(base), (exponent - 1) / 2));
     }
 
-    return exponentiationBySquaring(this, other);
+    return exponentiationBySquaring(this, exponent);
 }
 
 
@@ -457,22 +595,22 @@ BigInteger.prototype.pow = function(other) {
  */
 function divideByNativeNumber(bigIntegerDividend, number) {
 
-    var quotient = new BigInteger(bigIntegerDividend.digits, bigIntegerDividend.negative);
+    var quotient = new Array(bigIntegerDividend.digits.length);
+//TODO check for number = 0
 
     var carry = 0;
 
     // Perform long division.
-    for (var i = quotient.digits.length - 1; i >= 0; i--){
-        var result = quotient.base * carry + quotient[i];
+    for (var i = quotient.length - 1; i >= 0; i--){
+        var result = bigIntegerDividend.base * carry + bigIntegerDividend.digits[i];
         quotient[i] = Math.floor(result / number);
         carry = result % number;
     }
 
-    // If there is a leading zero, remove it.
-    if (quotient.digits[quotient.digits.length - 1] === 0)
-        quotient.digits.length--;
+    var result = new BigInteger(quotient, bigIntegerDividend.negative ^ (number < 0))
+    stripLeadingZeroDigits(result);
 
-    return quotient;
+    return result;
 }
 
 
@@ -498,8 +636,8 @@ function trialDigit(dividend, firstTwoDivisorDigits, useThreeDigits) {
 
     var firstTwoDividendDigits = firstTwoDigits(dividend);
     if (useThreeDigits && dividend.digits.length > 2) {
-        divisorPart /= divisor.base;
-        dividendPart += dividend.digits[dividend.digits.length - 3] / dividend.base;
+        firstTwoDivisorDigits /= dividend.base;
+        firstTwoDividendDigits += dividend.digits[dividend.digits.length - 3] / dividend.base;
     }
 
     return Math.floor(firstTwoDividendDigits / firstTwoDivisorDigits);
@@ -641,8 +779,9 @@ BigInteger.prototype.modulo = function(other) {
     // If the dividend is less than the value of the maximum JS number, primitive
     // modulo can be used. Note that 'this' and 'other' are used instead of
     // 'dividend' and 'divisor' to maintain sign value.
-    if (dividend.isLessThan(new BigInteger(Number.MAX_VALUE)))
-        return new BigInteger(this.toNumber() % other.toNumber());
+    if (dividend.isLessThan(new BigInteger("4000000000000"))) {
+        return new BigInteger(Math.floor(this.toNumber() % other.toNumber()));
+    }
 
     // useThreeDigits flag indicates we are going to include two digits from the divisor in our
     // trial digit calculation. This occurs when the first digit is smaller than that
@@ -664,9 +803,6 @@ BigInteger.prototype.modulo = function(other) {
         useThreeDigits = true;
     }
 
-    // Create quotient digit array.
-    var quotient = new Array(pos + 1);
-
     while (pos >= 0) {
 
         // Calculate a trial digit.
@@ -674,11 +810,12 @@ BigInteger.prototype.modulo = function(other) {
 
         // Calculate product of current quotient and divisor.
         var product = multiplyOneDigit(divisor, qt, pos);
+        //alert(product.isGreaterThan(dividend));
 
         // If the product is greater than the actual quotient, obviously the
         // trial digit is too large. It is only possible for the trial digit to
         // be too large by 1, so be subtract 1 and are left with the correct digit.
-        if (product.isGreaterThan(dividend)) {
+        if (product.compare(dividend) > 0) {
             qt--;
             product = multiplyOneDigit(divisor, qt, pos);
         }
@@ -693,9 +830,6 @@ BigInteger.prototype.modulo = function(other) {
 
         // Subtract the product from the dividend.
         dividend = dividend.subtract(product);
-
-        // Put the trial digit in the quotient.
-        quotient[pos] = qt;
 
         // Calculate the new position in the quotient.
         pos = dividend.digits.length - divisor.digits.length;
@@ -997,5 +1131,54 @@ console.assert(num7E16.modulo(num7E16).equals(new BigInteger(0)));
 
 // Test modulo with smaller number % larger number.
 console.assert(num2E16.modulo(num7E16).equals(num2E16));
+
+
+/** Test BigInteger.isEven() **/
+
+// Test with zero.
+console.assert(BigInteger.ZERO.isEven());
+
+// Test with one.
+console.assert(!BigInteger.ONE.isEven());
+
+// Test with multi-digit even number.
+console.assert((new BigInteger("123456789098765432")).isEven());
+
+// Test with multi-digit odd number.
+console.assert(!(new BigInteger("98765432123456789")).isEven());
+
+
+/** Test BigInteger.compare(...) **/
+
+// Test === with positive number, multiple digits.
+console.assert(num9E6.compare(new BigInteger("9000000")) === 0);
+
+// Test === with negative number, multiple digits.
+console.assert(numNeg9E6.compare(new BigInteger("-9000000")) === 0);
+
+// Test > with positive numbers, same order of magnitude.
+console.assert(num9E6.compare(num5E6) > 0);
+
+// Test > with positive numbers, different orders of magnitude.
+console.assert(num5E6.compare(num800) > 0);
+
+// Test > with negative numbers, same order of magnitude.
+console.assert(numNeg5E6.compare(numNeg9E6) > 0);
+
+// Test > with negative numbers, different orders of magnitude.
+console.assert(numNeg800.compare(numNeg5E6) > 0);
+
+// Test < with positive numbers, same order of magnitude.
+console.assert(num5E6.compare(num9E6) < 0);
+
+// Test < with positive numbers, different orders of magnitude.
+console.assert(num800.compare(num5E6) < 0);
+
+// Test < with negative numbers, same order of magnitude.
+console.assert(numNeg9E6.compare(numNeg5E6) < 0);
+
+// Test < with negative numbers, different orders of magnitude.
+console.assert(numNeg5E6.compare(numNeg800) < 0);
+
 
 console.log("Testing complete.");
