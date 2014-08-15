@@ -87,131 +87,6 @@ function BigInteger(number, negative) {
         this.negative = negative;
         this.numberString = null;
     }
-
-
-    /**
-     * Calculates the modulus of this BigInteger raised to some power.
-     *
-     * @param  {BigInteger} exponent The exponent to which this BigInteger is raised.
-     * @param  {BigInteger} modulus  The modulus.
-     *
-     * @return {BigInteger} The result of the modPow operation.
-     */
-    this.modPow = function(exponent, modulus) {
-
-        var x = BigInteger.ONE;
-        var a = this;
-        var e = exponent;
-
-        while (e.compare(BigInteger.ZERO) > 0) {
-            if (e.isEven()) {
-                a = a.multiply(a).modulo(modulus);
-                e = divideByNativeNumber(e, 2);
-            } else {
-                x = x.multiply(a).modulo(modulus);
-                e = e.subtract(BigInteger.ONE);
-            }
-        }
-
-        return x;
-    }
-
-
-    /**
-     * Convenience method that indicates whether or not this BigInteger is even. Significantly
-     * cheaper than performing BigInteger.modulo(2).
-     *
-     * @return {Boolean} True if this BigInteger is even, false if it is odd.
-     */
-    this.isEven = function() {
-        if (this.digits.length === 0)
-            return true;
-        return (this.digits[0] % 2 === 0);
-    }
-
-
-    /**
-     * Compares this BigInteger with another BigInteger.
-     *
-     * @param  {BigInteger} other The BigInteger to which this one is compared.
-     *
-     * @return {Number} Positive if this BigInteger is greater than 'other', 0 if they are equal,
-     *                           or negative if this BigInteger is less than 'other'.
-     */
-    this.compare = function (other) {
-
-        // Check if other is null, undefined, or not a BigInteger.
-        if (other === null || other === undefined || other.constructor !== BigInteger)
-            throw "Object being compared is not a valid BigInteger.";
-
-        // Compare signs.
-        if (this.negative && !other.negative)
-            return -1;
-        if (!this.negative && other.negative)
-            return 1;
-
-        // Compare lengths.
-        if (this.negative) {
-            if (this.digits.length > other.digits.length)
-                return -1;
-            if (this.digits.length < other.digits.length)
-                return 1;
-        } else {
-            if (this.digits.length > other.digits.length)
-                return 1;
-            if (this.digits.length < other.digits.length)
-                return -1;
-        }
-
-        // Subtract to compare magnitude.
-        var result = this.subtract(other);
-        if (result.digits.length === 0)
-            return 0;
-        return result.negative ? -1 : 1;
-    }
-
-
-    this.isPrime = function() {
-
-        if(this.isEven() || this.modulo(BigInteger.THREE) === 0)
-            return false;
-
-        var k = 5;
-
-        var count = 0;
-        var nSub1 = this.subtract(BigInteger.ONE);
-        var d = nSub1;
-
-        while (d.isEven()) {
-            d = divideByNativeNumber(d, 2);
-            count++;
-        }
-
-        for (var i = 0; i < k; i++) {
-
-            // Random integer in [2, n - 2].
-            var a = BigInteger.random(this.subtract(BigInteger.THREE)).add(BigInteger.TWO);
-
-            var x = a.modPow(d, this);
-
-            if (x.equals(BigInteger.ONE) || x.equals(nSub1))
-                continue;
-
-            for (var j = 0; j < count - 1; j++) {
-                x = x.multiply(x).modulo(this);
-
-                if (x.equals(BigInteger.ONE))
-                    return false;
-
-                if (x.equals(nSub1))
-                    break;
-            }
-            if (!x.equals(nSub1))
-                return false;
-        }
-
-        return true;
-    }
 }
 
 
@@ -222,6 +97,8 @@ BigInteger.TWO = new BigInteger(2);
 BigInteger.THREE = new BigInteger(3);
 BigInteger.TEN = new BigInteger(10)
 BigInteger.NEGATIVE_ONE = new BigInteger(-1);
+
+
 
 
 /**
@@ -262,23 +139,6 @@ BigInteger.random = function(limit) {
 
 
 /**
- * Checks if a string represents zero. Instead of simply using parseInt(string) === 0, this function
- * is used in case the string is not able to be parse to an integer.
- *
- * @param  {String}  str The string to check.
- *
- * @return {Boolean} True if the string represents zero, false otherwise.
- */
-function isZeroString(str) {
-    for (var i = 0; i < str.length; i++) {
-        if (str.charAt(i) !== '0')
-            return false;
-    }
-    return true;
-}
-
-
-/**
  * Converts the value of this BigInteger to a string.
  *
  * @return {String} A String representation of this BigInteger.
@@ -302,6 +162,75 @@ BigInteger.prototype.toString = function() {
     string = this.digits[this.digits.length - 1] + string;
 
     return (this.negative ? "-" : "") + string;
+}
+
+
+/**
+ * Converts the BigInteger to it's Number representation. Throws an exception if the BigInteger
+ * is too large to fit into a native Number object.
+ *
+ * @return {Number} The Number representation of this BigInteger.
+ */
+BigInteger.prototype.toNumber = function() {
+    return parseInt(this.toString());
+}
+
+
+/**
+ * Checks if a string represents zero. Instead of simply using parseInt(string) === 0, this function
+ * is used in case the string is not able to be parse to an integer.
+ *
+ * @param  {String}  str The string to check.
+ *
+ * @return {Boolean} True if the string represents zero, false otherwise.
+ */
+function isZeroString(str) {
+    for (var i = 0; i < str.length; i++) {
+        if (str.charAt(i) !== '0')
+            return false;
+    }
+    return true;
+}
+
+
+/**
+ * Compares this BigInteger with another BigInteger.
+ *
+ * @param  {BigInteger} other The BigInteger to which this one is compared.
+ *
+ * @return {Number} Positive if this BigInteger is greater than 'other', 0 if they are equal,
+ *                           or negative if this BigInteger is less than 'other'.
+ */
+BigInteger.prototype.compare = function (other) {
+
+    // Check if other is null, undefined, or not a BigInteger.
+    if (other === null || other === undefined || other.constructor !== BigInteger)
+        throw "Object being compared is not a valid BigInteger.";
+
+    // Compare signs.
+    if (this.negative && !other.negative)
+        return -1;
+    if (!this.negative && other.negative)
+        return 1;
+
+    // Compare lengths.
+    if (this.negative) {
+        if (this.digits.length > other.digits.length)
+            return -1;
+        if (this.digits.length < other.digits.length)
+            return 1;
+    } else {
+        if (this.digits.length > other.digits.length)
+            return 1;
+        if (this.digits.length < other.digits.length)
+            return -1;
+    }
+
+    // Subtract to compare magnitude.
+    var result = this.subtract(other);
+    if (result.digits.length === 0)
+        return 0;
+    return result.negative ? -1 : 1;
 }
 
 
@@ -766,6 +695,13 @@ BigInteger.prototype.divide = function(other) {
 }
 
 
+/**
+ * Calculates the result of this BigInteger modulo another BigInteger.
+ *
+ * @param  {BigInteger} other The modulus.
+ *
+ * @return {BigInteger} The result.
+ */
 BigInteger.prototype.modulo = function(other) {
 
     // Create a new clone of the dividend (this) for use in the algorithm.
@@ -848,13 +784,106 @@ BigInteger.prototype.modulo = function(other) {
 
 
 /**
- * Converts the BigInteger to it's Number representation. Throws an exception if the BigInteger
- * is too large to fit into a native Number object.
+ * Convenience method that indicates whether or not this BigInteger is even. Significantly
+ * cheaper than performing BigInteger.modulo(2).
  *
- * @return {Number} The Number representation of this BigInteger.
+ * @return {Boolean} True if this BigInteger is even, false if it is odd.
  */
-BigInteger.prototype.toNumber = function() {
-    return parseInt(this.toString());
+BigInteger.prototype.isEven = function() {
+    if (this.digits.length === 0)
+        return true;
+    return (this.digits[0] % 2 === 0);
+}
+
+
+/**
+ * Calculates the modulus of this BigInteger raised to some power.
+ *
+ * @param  {BigInteger} exponent The exponent to which this BigInteger is raised.
+ * @param  {BigInteger} modulus  The modulus.
+ *
+ * @return {BigInteger} The result of the modPow operation.
+ */
+BigInteger.prototype.modPow = function(exponent, modulus) {
+
+    var x = BigInteger.ONE;
+    var a = this;
+    var e = exponent;
+
+    while (e.compare(BigInteger.ZERO) > 0) {
+        if (e.isEven()) {
+            a = a.multiply(a).modulo(modulus);
+            e = divideByNativeNumber(e, 2);
+        } else {
+            x = x.multiply(a).modulo(modulus);
+            e = e.subtract(BigInteger.ONE);
+        }
+    }
+
+    return x;
+}
+
+
+/**
+ * Checks if the this BigInteger is a probable prime. Will always return true for primes, but may
+ * not always return false for some composites which are strong liars. In other words, false
+ * indicates that the number is definitely composite, but true does not necessarily mean it is
+ * prime.
+ *
+ * @param  {Number}  witnessLoops The number of witness loops through which to iterate. More loops
+ *                                reduce the chance of incorrectly identifying composite numbers as
+ *                                prime.
+ * @return {Boolean}              [description]
+ */
+BigInteger.prototype.isPrime = function(witnessLoops) {
+
+    // Check for an incorrect parameter.
+    if (witnessLoops === null || typeof(witnessLoops) != "number" || witnessLoops < 1)
+        throw "Number of witness loops must be a positive integer."
+
+    // If the number is divisible by 2, 3, or 5.
+    if(this.isEven() || this.modulo(BigInteger.THREE) === 0 || this.digits[0] % 5 === 0)
+        return false;
+
+    // Set witnessLoops if it was not set by the user.
+    if (witnessLoops === undefined)
+        witnessLoops = 5;
+
+    var nSub1 = this.subtract(BigInteger.ONE);
+    var d = nSub1;
+
+    var count = 0;
+
+    // Factor out power of two from the number.
+    while (d.isEven()) {
+        d = divideByNativeNumber(d, 2);
+        count++;
+    }
+
+    for (var i = 0; i < witnessLoops; i++) {
+
+        // Random integer in [2, n - 2].
+        var a = BigInteger.random(this.subtract(BigInteger.THREE)).add(BigInteger.TWO);
+
+        var x = a.modPow(d, this);
+
+        if (x.equals(BigInteger.ONE) || x.equals(nSub1))
+            continue;
+
+        for (var j = 0; j < count - 1; j++) {
+            x = x.multiply(x).modulo(this);
+
+            if (x.equals(BigInteger.ONE))
+                return false;
+
+            if (x.equals(nSub1))
+                break;
+        }
+        if (!x.equals(nSub1))
+            return false;
+    }
+
+    return true;
 }
 
 
