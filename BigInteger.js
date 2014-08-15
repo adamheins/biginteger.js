@@ -219,18 +219,36 @@ BigInteger.prototype.compare = function (other) {
             return -1;
         if (this.digits.length < other.digits.length)
             return 1;
+
+        for (var i = this.digits.length - 1; i >= 0; i--) {
+
+            if (this.digits[i] > other.digits[i])
+                return -1;
+            if (this.digits[i] < other.digits[i])
+                return 1;
+        }
+
     } else {
+
         if (this.digits.length > other.digits.length)
             return 1;
         if (this.digits.length < other.digits.length)
             return -1;
+
+        for (var i = this.digits.length - 1; i >= 0; i--) {
+            if (this.digits[i] < other.digits[i])
+                return -1;
+            if (this.digits[i] > other.digits[i])
+                return 1;
+        }
     }
 
+    return 0;
     // Subtract to compare magnitude.
-    var result = this.subtract(other);
+    /*var result = this.subtract(other);
     if (result.digits.length === 0)
         return 0;
-    return result.negative ? -1 : 1;
+    return result.negative ? -1 : 1;*/
 }
 
 
@@ -310,7 +328,7 @@ BigInteger.prototype.subtract = function(other) {
 
     if (this.negative) {
         if (other.negative) {
-            if (this.isLessThan(other)) {
+            if (this.compare(other) < 0) {
 
                     // Subtract other from this, result negative.
                     var result = subtractionByComplement(this, other);
@@ -334,8 +352,7 @@ BigInteger.prototype.subtract = function(other) {
             result.negative = false;
             return result;
         } else {
-
-            if (this.isGreaterThan(other) || this.equals(other)) {
+            if (this.compare(other) >= 0) {
 
                     // Subtract other from this, result negative.
                     var result = subtractionByComplement(this, other);
@@ -364,7 +381,7 @@ BigInteger.prototype.subtract = function(other) {
 function subtractionByComplement(minuend, subtrahend) {
 
     // Create positive version of this and the other.
-    var posMinuend = new BigInteger(minuend.digits, false);
+    var posMinuend = new BigInteger(minuend.digits, false); //TODO may be redundant
     var posSubtrahend = new BigInteger(subtrahend.digits, false);
 
     // Return a copy of this BigInteger if the other number is zero/empty.
@@ -385,7 +402,7 @@ function subtractionByComplement(minuend, subtrahend) {
     result = result.add(BigInteger.ONE);
 
     // Subtract one from the most significant digits.
-    var msdIndex = result.digits.length - 1;
+    var msdIndex = complement.digits.length;//result.digits.length - 1;
     //var msd = result.digits[msdIndex]
     //    - Math.pow(10, Math.floor(Math.log(result.digits[msdIndex]) / Math.LN10));
     var msd = result.digits[msdIndex] - 1;
@@ -525,6 +542,8 @@ BigInteger.prototype.pow = function(exponent) {
 function divideByNativeNumber(bigIntegerDividend, number) {
 
     var quotient = new Array(bigIntegerDividend.digits.length);
+    var numNeg = number < 0;
+    number = Math.abs(number);
 //TODO check for number = 0
 
     var carry = 0;
@@ -536,7 +555,7 @@ function divideByNativeNumber(bigIntegerDividend, number) {
         carry = result % number;
     }
 
-    var result = new BigInteger(quotient, bigIntegerDividend.negative ^ (number < 0))
+    var result = new BigInteger(quotient, bigIntegerDividend.negative ^ numNeg)
     stripLeadingZeroDigits(result);
 
     return result;
@@ -609,13 +628,13 @@ BigInteger.prototype.divide = function(other) {
     var divisor = new BigInteger(other.digits, false);
 
     // If the dividend is less than the divisor, zero can be immediately returned.
-    if (dividend.isLessThan(divisor))
+    if (dividend.compare(divisor) < 0)
         return new BigInteger("0"); //TODO constant for zero, 1, 2, 10, -1
 
     // If the dividend is less than the value of the maximum JS number, primitive
     // division can be used. Note that 'this' and 'other' are used instead of
     // 'dividend' and 'divisor' to maintain sign value.
-    if (dividend.isLessThan(new BigInteger(Number.MAX_VALUE))) {
+    if (dividend.compare(new BigInteger("4000000000000")) < 0) {
         var negativeMultiplier = (this.negative ^ other.negative) ? -1 : 1;
         var magnitude = Math.floor(Math.abs(this.toNumber() / other.toNumber()));
         return new BigInteger(negativeMultiplier * magnitude);
@@ -623,7 +642,7 @@ BigInteger.prototype.divide = function(other) {
 
     // If the divisor is less than the value of the base squared, a simpler long division
     // algorithm can be used.
-    if (divisor.isLessThan(new BigInteger("1000000000000"))) //TODO constant for base squared.
+    if (divisor.compare(new BigInteger("4000000000000")) < 0)
         return divideByNativeNumber(this, other.toNumber());
 
     // useThreeDigits flag indicates we are going to include two digits from the divisor in our
@@ -660,7 +679,7 @@ BigInteger.prototype.divide = function(other) {
         // If the product is greater than the actual quotient, obviously the
         // trial digit is too large. It is only possible for the trial digit to
         // be too large by 1, so be subtract 1 and are left with the correct digit.
-        if (product.isGreaterThan(dividend)) {
+        if (product.compare(dividend) > 0) {
             qt--;
             product = multiplyOneDigit(divisor, qt, pos);
         }
@@ -695,6 +714,31 @@ BigInteger.prototype.divide = function(other) {
 }
 
 
+/*
+
+function remainder(x: number;
+k: integer): number;
+var carry, i, m: integer;
+begin
+m := length(x); carry := 0;
+for i := m − 1 downto 0 do
+carry := (carry∗b + x[i]) mod k;
+remainder := value(carry)
+end;
+
+ */
+
+BigInteger.prototype.remainder = function(mod) {
+    var carry = 0;
+
+    for (var i = this.digits.length - 1; i >= 0; i--)
+        carry = (carry * this.base + this.digits[i]) % mod;
+    return new BigInteger(carry);
+}
+
+
+
+
 /**
  * Calculates the result of this BigInteger modulo another BigInteger.
  *
@@ -709,15 +753,18 @@ BigInteger.prototype.modulo = function(other) {
     var divisor = new BigInteger(other.digits, false);
 
     // If the dividend is less than the divisor, simply return the dividend.
-    if (dividend.isLessThan(divisor))
+    if (dividend.compare(divisor) < 0)
         return dividend;
 
     // If the dividend is less than the value of the maximum JS number, primitive
     // modulo can be used. Note that 'this' and 'other' are used instead of
     // 'dividend' and 'divisor' to maintain sign value.
-    if (dividend.isLessThan(new BigInteger("4000000000000"))) {
+    if (dividend.compare(new BigInteger("4000000000000")) < 0) {
         return new BigInteger(Math.floor(this.toNumber() % other.toNumber()));
     }
+
+    if (divisor.compare(new BigInteger("4000000000000")) < 0)
+        return this.remainder(other.toNumber());
 
     // useThreeDigits flag indicates we are going to include two digits from the divisor in our
     // trial digit calculation. This occurs when the first digit is smaller than that
@@ -746,7 +793,6 @@ BigInteger.prototype.modulo = function(other) {
 
         // Calculate product of current quotient and divisor.
         var product = multiplyOneDigit(divisor, qt, pos);
-        //alert(product.isGreaterThan(dividend));
 
         // If the product is greater than the actual quotient, obviously the
         // trial digit is too large. It is only possible for the trial digit to
@@ -812,10 +858,14 @@ BigInteger.prototype.modPow = function(exponent, modulus) {
 
     while (e.compare(BigInteger.ZERO) > 0) {
         if (e.isEven()) {
+
             a = a.multiply(a).modulo(modulus);
+
             e = divideByNativeNumber(e, 2);
         } else {
+            //console.log("x=" + x + "*" + a + "%" + modulus);
             x = x.multiply(a).modulo(modulus);
+            //console.log("=" + x);
             e = e.subtract(BigInteger.ONE);
         }
     }
@@ -838,8 +888,13 @@ BigInteger.prototype.modPow = function(exponent, modulus) {
 BigInteger.prototype.isPrime = function(witnessLoops) {
 
     // Check for an incorrect parameter.
-    if (witnessLoops === null || typeof(witnessLoops) != "number" || witnessLoops < 1)
+    if (witnessLoops != undefined && (witnessLoops === null || typeof(witnessLoops) != "number" || witnessLoops < 1))
         throw "Number of witness loops must be a positive integer."
+
+    if (this.compare(BigInteger.ONE) <= 0)
+        return false;
+    if (this.compare(BigInteger.THREE) <= 0)
+        return true;
 
     // If the number is divisible by 2, 3, or 5.
     if(this.isEven() || this.modulo(BigInteger.THREE) === 0 || this.digits[0] % 5 === 0)
@@ -854,127 +909,38 @@ BigInteger.prototype.isPrime = function(witnessLoops) {
 
     var count = 0;
 
+//console.log(this + "");
+//console.log(nSub1.toString());
     // Factor out power of two from the number.
     while (d.isEven()) {
         d = divideByNativeNumber(d, 2);
         count++;
     }
-
+ //console.log(d + "        " + count);
     for (var i = 0; i < witnessLoops; i++) {
 
         // Random integer in [2, n - 2].
         var a = BigInteger.random(this.subtract(BigInteger.THREE)).add(BigInteger.TWO);
 
         var x = a.modPow(d, this);
-
-        if (x.equals(BigInteger.ONE) || x.equals(nSub1))
+        //console.log(x + "=" + a + "^" + d + "%" + this);
+        if (x.compare(BigInteger.ONE) === 0 || x.compare(nSub1) === 0)
             continue;
 
         for (var j = 0; j < count - 1; j++) {
             x = x.multiply(x).modulo(this);
 
-            if (x.equals(BigInteger.ONE))
+            if (x.compare(BigInteger.ONE) === 0)
                 return false;
 
-            if (x.equals(nSub1))
+            if (x.compare(nSub1) === 0)
                 break;
         }
-        if (!x.equals(nSub1))
+        if (x.compare(nSub1) !== 0)
             return false;
     }
 
     return true;
-}
-
-
-/**
- * Checks for equality of this BigInteger and another one.
- *
- * @param  {BigInteger} other The other BigInteger to which this one is being compared.
- *
- * @return {Boolean} True if this BigInteger is equal to other, false otherwise.
- */
-BigInteger.prototype.equals = function(other) {
-
-    // Check for null and undefined.
-    if (other === null || other === undefined)
-        return false;
-
-    // Compare signs.
-    if (this.negative != other.negative)
-        return false;
-
-    // Compare number of digits.
-    if (this.digits.length != other.digits.length)
-        return false;
-
-    // Compare each digit.
-    for (var i = this.digits.length - 1; i >= 0; i--) {
-        if (this.digits[i] != other.digits[i])
-            return false;
-    }
-
-    return true;
-}
-
-
-/**
- * Checks if this BigInteger is larger than another BigInteger.
- *
- * @param  {BigInteger}  other The BigInteger to which this one is being compared.
- *
- * @return {Boolean} True if this BigInteger is larger than 'other', false otherwise.
- */
-BigInteger.prototype.isGreaterThan = function(other) {
-
-    // Check for null and undefined.
-    if (other === null || other === undefined)
-        return false;
-
-    // Compare signs.
-    if (this.negative && !other.negative)
-        return false;
-    if (!this.negative && other.negative)
-        return true;
-    if (this.negative && other.negative) {
-        var positiveThis = new BigInteger(this.digits, false);
-        var positiveOther = new BigInteger(other.digits, false);
-        return positiveThis.isLessThan(positiveOther);
-    }
-
-    // Compare number of digits.
-    if (this.digits.length > other.digits.length)
-        return true;
-    if (this.digits.length < other.digits.length)
-        return false;
-
-    // Compare each digit.
-    for (var i = this.digits.length - 1; i >= 0; i--) {
-        if (this.digits[i] < other.digits[i])
-            return false;
-        if (this.digits[i] > other.digits[i])
-            return true;
-    }
-
-    return true;
-}
-
-
-/**
- * Checks if this BigInteger is less than another BigInteger.
- *
- * @param  {BigInteger} other The BigInteger to which this one is being compared.
- *
- * @return {Boolean} True if this BigInteger is less than other, false otherwise.
- */
-BigInteger.prototype.isLessThan = function(other) {
-
-    // Check for null and undefined.
-    if (other === null || other === undefined)
-        return false;
-
-    // Otherwise, simply check that it is not equal or greater than the other number.
-    return (!this.equals(other) && !this.isGreaterThan(other));
 }
 
 
@@ -997,12 +963,11 @@ var numNeg4E20 = new BigInteger("-400000000000000000000");
 var numNeg7E16 = new BigInteger("-70000000000000000");
 var numNeg2E16 = new BigInteger("-20000000000000000");
 
-
 /** Test the constructor **/
 
-console.assert((new BigInteger("0")).equals(BigInteger.ZERO));
+console.assert((new BigInteger("0")).compare(BigInteger.ZERO) === 0);
 
-console.assert((new BigInteger(0)).equals(BigInteger.ZERO));
+console.assert((new BigInteger(0)).compare(BigInteger.ZERO) === 0);
 
 
 /** Test BigInteger.toString() **/
@@ -1019,162 +984,6 @@ console.assert(numNeg5E6.toString() === "-5000000");
 // Test BigInteger.toString() with positive number, one digit,
 // with only one decimal order of magnitude less than BigInteger.base.
 console.assert(numNeg1E5.toString() === "-100000");
-
-
-/** Test BigInteger.equals() **/
-
-// Test equals with positive number, multiple digits.
-console.assert(num9E6.equals(new BigInteger("9000000")));
-
-// Test equals with negative number, multiple digits.
-console.assert(numNeg9E6.equals(new BigInteger("-9000000")));
-
-
-/** Test BigInteger.isGreaterThan() **/
-
-// Test isGreaterThan with positive numbers, same order of magnitude.
-console.assert(num9E6.isGreaterThan(num5E6));
-
-// Test isGreaterThan with positive numbers, different orders of magnitude.
-console.assert(num5E6.isGreaterThan(num800));
-
-// Test isGreaterThan with negative numbers, same order of magnitude.
-console.assert(numNeg5E6.isGreaterThan(numNeg9E6));
-
-// Test isGreaterThan with negative numbers, different orders of magnitude.
-console.assert(numNeg800.isGreaterThan(numNeg5E6));
-
-
-/** Test BigInteger.isLessThan() **/
-
-// Test isLessThan with positive numbers, same order of magnitude.
-console.assert(num5E6.isLessThan(num9E6));
-
-// Test isLessThan with positive numbers, different orders of magnitude.
-console.assert(num800.isLessThan(num5E6));
-
-// Test isLessThan with negative numbers, same order of magnitude.
-console.assert(numNeg9E6.isLessThan(numNeg5E6));
-
-// Test isLessThan with negative numbers, different orders of magnitude.
-console.assert(numNeg5E6.isLessThan(numNeg800));
-
-
-/** Test BigInteger.add(...) **/
-
-// Test addition with two positive numbers.
-console.assert(num9E6.add(num5E6).equals(new BigInteger("14000000")));
-
-// Test addition with two negative numbers.
-console.assert(numNeg9E6.add(numNeg5E6).equals(new BigInteger("-14000000")));
-
-// Test addition with negative added to positive.
-console.assert(num9E6.add(numNeg5E6).equals(new BigInteger("4000000")));
-
-// Test addition with positive added to negative.
-console.assert(numNeg9E6.add(num5E6).equals(new BigInteger("-4000000")));
-
-
-/** Test BigInteger.subtract(...) **/
-
-// Test subtraction with a positive number minus itself.
-console.assert(num5E6.subtract(num5E6).equals(new BigInteger("0")));
-
-// Test subtraction with a negative number minus itself.
-console.assert(numNeg5E6.subtract(numNeg5E6).equals(new BigInteger("0")));
-
-// Test subtraction with two positive numbers, greater - lesser.
-console.assert(num9E6.subtract(num5E6).equals(new BigInteger("4000000")));
-
-// Test subtraction with two positive numbers, lesser - greater.
-console.assert(num5E6.subtract(num9E6).equals(new BigInteger("-4000000")));
-
-// Test subtraction with two negative numbers, lesser - greater.
-console.assert(numNeg9E6.subtract(numNeg5E6).equals(new BigInteger("-4000000")));
-
-// Test subtraction with two negative numbers, greater - lesser.
-console.assert(numNeg5E6.subtract(numNeg9E6).equals(new BigInteger("4000000")));
-
-// Test subtraction with negative - positive.
-console.assert(numNeg9E6.subtract(num5E6).equals(new BigInteger("-14000000")));
-
-// Test subtraction with positive - negative.
-console.assert(num9E6.subtract(numNeg5E6).equals(new BigInteger("14000000")));
-
-
-/** Test BigInteger.multiply(...) **/
-
-// Test multiply with result greater order of magnitude than factors.
-console.assert(num800.multiply(num1E5).equals(new BigInteger("80000000")));
-
-// Test multiplication with two positive numbers.
-console.assert(num9E6.multiply(num5E6).equals(new BigInteger("45000000000000")));
-
-// Test multiplication with two negative numbers.
-console.assert(numNeg9E6.multiply(numNeg5E6).equals(new BigInteger("45000000000000")));
-
-// Test multiplication with one positive and one negative number.
-console.assert(numNeg9E6.multiply(num5E6).equals(new BigInteger("-45000000000000")));
-
-
-/** Test BigInteger.divide(...) **/
-
-// Test division with number dividing itself.
-console.assert(num9E6.divide(num9E6).equals(new BigInteger("1")));
-
-// Test division with smaller number divided by larger number.
-console.assert(num5E6.divide(num9E6).equals(new BigInteger("0")));
-
-// Test division with both numbers less than Number.MAX_INT.
-console.assert(num5E6.divide(num1E5).equals(new BigInteger("50")));
-
-// Test division with both numbers less than Number.MAX_INT, with non-even result.
-console.assert(num9E6.divide(num5E6).equals(new BigInteger("1")));
-
-// Test division with a number larger than Number.MAX_INT, and a divisor which isn't.
-console.assert(num7E16.divide(num5E6).equals(new BigInteger("14000000000")));
-
-// Repeat the above test with one value negative.
-console.assert(numNeg7E16.divide(num5E6).equals(new BigInteger("-14000000000")));
-
-// Repeat the above test with both values negative.
-console.assert(numNeg7E16.divide(numNeg5E6).equals(new BigInteger("14000000000")));
-
-// Test division with two numbers that are both larger than Number.MAX_INT.
-console.assert(num7E16.divide(num2E16).equals(new BigInteger(3)));
-
-// Repeat the above test with a negative divisor.
-console.assert(num7E16.divide(numNeg2E16).equals(new BigInteger(-3)));
-
-// Test division with a significantly larger dividend.
-console.assert(num4E20.divide(num7E16).equals(new BigInteger(5714)));
-
-// Test division with a two numbers that have equal first digits (but do not divide cleanly).
-console.assert(num2E16.divide(new BigInteger("2000000000001234")).equals(new BigInteger(9)));
-
-
-/** Test BigInteger.modulo(...) **/
-
-// Test modulo with the same number.
-console.assert(num7E16.modulo(num7E16).equals(new BigInteger(0)));
-
-// Test modulo with smaller number % larger number.
-console.assert(num2E16.modulo(num7E16).equals(num2E16));
-
-
-/** Test BigInteger.isEven() **/
-
-// Test with zero.
-console.assert(BigInteger.ZERO.isEven());
-
-// Test with one.
-console.assert(!BigInteger.ONE.isEven());
-
-// Test with multi-digit even number.
-console.assert((new BigInteger("123456789098765432")).isEven());
-
-// Test with multi-digit odd number.
-console.assert(!(new BigInteger("98765432123456789")).isEven());
 
 
 /** Test BigInteger.compare(...) **/
@@ -1208,6 +1017,176 @@ console.assert(numNeg9E6.compare(numNeg5E6) < 0);
 
 // Test < with negative numbers, different orders of magnitude.
 console.assert(numNeg5E6.compare(numNeg800) < 0);
+
+
+/** Test addition **/
+
+// Test addition with two positive numbers.
+console.assert(num9E6.add(num5E6).compare(new BigInteger("14000000")) === 0);
+
+// Test addition with two negative numbers.
+console.assert(numNeg9E6.add(numNeg5E6).compare(new BigInteger("-14000000")) === 0);
+
+// Test addition with negative added to positive.
+console.assert(num9E6.add(numNeg5E6).compare(new BigInteger("4000000")) === 0);
+
+// Test addition with positive added to negative.
+console.assert(numNeg9E6.add(num5E6).compare(new BigInteger("-4000000")) === 0);
+
+
+/** Test BigInteger.subtract(...) **/
+
+// Test subtraction with a positive number minus itself.
+console.assert(num5E6.subtract(num5E6).compare(BigInteger.ZERO) === 0);
+
+// Test subtraction with a negative number minus itself.
+console.assert(numNeg5E6.subtract(numNeg5E6).compare(BigInteger.ZERO) === 0);
+
+// Test subtraction with two positive numbers, greater - lesser.
+console.assert(num9E6.subtract(num5E6).compare(new BigInteger("4000000")) === 0);
+
+// Test subtraction with two positive numbers, lesser - greater.
+console.assert(num5E6.subtract(num9E6).compare(new BigInteger("-4000000")) === 0);
+
+// Test subtraction with two negative numbers, lesser - greater.
+console.assert(numNeg9E6.subtract(numNeg5E6).compare(new BigInteger("-4000000")) === 0);
+
+// Test subtraction with two negative numbers, greater - lesser.
+console.assert(numNeg5E6.subtract(numNeg9E6).compare(new BigInteger("4000000")) === 0);
+
+// Test subtraction with negative - positive.
+console.assert(numNeg9E6.subtract(num5E6).compare(new BigInteger("-14000000")) === 0);
+
+// Test subtraction with positive - negative.
+console.assert(num9E6.subtract(numNeg5E6).compare(new BigInteger("14000000")) === 0);
+
+
+/** Test BigInteger.multiply(...) **/
+
+// Test multiply with result greater order of magnitude than factors.
+console.assert(num800.multiply(num1E5).compare(new BigInteger("80000000")) === 0);
+
+// Test multiplication with two positive numbers.
+console.assert(num9E6.multiply(num5E6).compare(new BigInteger("45000000000000")) === 0);
+
+// Test multiplication with two negative numbers.
+console.assert(numNeg9E6.multiply(numNeg5E6).compare(new BigInteger("45000000000000")) === 0);
+
+// Test multiplication with one positive and one negative number.
+console.assert(numNeg9E6.multiply(num5E6).compare(new BigInteger("-45000000000000")) === 0);
+
+
+/** Test BigInteger.divide(...) **/
+
+// Test division with number dividing itself.
+console.assert(num9E6.divide(num9E6).compare(new BigInteger("1")) === 0);
+
+// Test division with smaller number divided by larger number.
+console.assert(num5E6.divide(num9E6).compare(new BigInteger("0")) === 0);
+
+// Test division with both numbers less than Number.MAX_INT.
+console.assert(num5E6.divide(num1E5).compare(new BigInteger("50")) === 0);
+
+// Test division with both numbers less than Number.MAX_INT, with non-even result.
+console.assert(num9E6.divide(num5E6).compare(new BigInteger("1")) === 0);
+
+// Test division with a number larger than Number.MAX_INT, and a divisor which isn't.
+console.assert(num7E16.divide(num5E6).compare(new BigInteger("14000000000")) === 0);
+
+// Repeat the above test with one value negative.
+console.assert(numNeg7E16.divide(num5E6).compare(new BigInteger("-14000000000")) === 0);
+
+// Repeat the above test with both values negative.
+console.assert(numNeg7E16.divide(numNeg5E6).compare(new BigInteger("14000000000")) === 0);
+
+// Test division with two numbers that are both larger than Number.MAX_INT.
+console.assert(num7E16.divide(num2E16).compare(new BigInteger(3)) === 0);
+
+// Repeat the above test with a negative divisor.
+console.assert(num7E16.divide(numNeg2E16).compare(new BigInteger(-3)) === 0);
+
+// Test division with a significantly larger dividend.
+console.assert(num4E20.divide(num7E16).compare(new BigInteger(5714)) === 0);
+
+// Test division with a two numbers that have equal first digits (but do not divide cleanly).
+console.assert(num2E16.divide(new BigInteger("2000000000001234")).compare(new BigInteger(9)) === 0);
+
+
+/** Test BigInteger.modulo(...) **/
+
+// Test modulo with the same number.
+console.assert(num7E16.modulo(num7E16).compare(BigInteger.ZERO)  === 0);
+
+// Test modulo with smaller number % larger number.
+console.assert(num2E16.modulo(num7E16).compare(num2E16)  === 0);
+
+
+/** Test BigInteger.isEven() **/
+
+// Test with zero.
+console.assert(BigInteger.ZERO.isEven());
+
+// Test with one.
+console.assert(!BigInteger.ONE.isEven());
+
+// Test with multi-digit even number.
+console.assert((new BigInteger("123456789098765432")).isEven());
+
+// Test with multi-digit odd number.
+console.assert(!(new BigInteger("98765432123456789")).isEven());
+
+
+/** Test isPrime() **/
+
+// Test that 0 is not prime.
+console.assert(!BigInteger.ZERO.isPrime());
+
+// Test that 1 is not primes.
+console.assert(!BigInteger.ONE.isPrime());
+
+// Test that 2 is prime.
+console.assert(BigInteger.TWO.isPrime());
+
+// Test that 3 is prime.
+console.assert(BigInteger.THREE.isPrime());
+
+// Test a very small composite number.
+console.assert(!BigInteger.TEN.isPrime());
+
+// Test a very small prime number.
+console.assert((new BigInteger(11)).isPrime());
+
+// Test a composite number divisible by 2.
+console.assert(!(new BigInteger("1000000000000000000000000")).isPrime());
+
+
+
+// Test a composite number divisible by 3.
+console.assert(!(new BigInteger("3333333333333333333333333")).isPrime());
+
+
+// Test large composite only divisible by primes greater than 10,000.
+console.assert(!(new BigInteger(8226930013)).isPrime());
+
+// Test large composite only divisible by primes greater than 10,000,000.
+console.assert(!(new BigInteger("773978878498831")).isPrime());
+
+// Test primes with one digit.
+console.assert((new BigInteger(78607)).isPrime());
+console.assert((new BigInteger(104659)).isPrime());
+
+// Test primes with two digits.
+console.assert((new BigInteger(15485863)).isPrime());
+console.assert((new BigInteger(735632797)).isPrime());
+
+// Test primes with three digits.
+console.assert((new BigInteger(4398042316799)).isPrime());
+console.assert((new BigInteger("18014398241046527")).isPrime());
+
+// Test large primes (more than four digits).
+console.assert((new BigInteger("1066340417491710595814572169")).isPrime());
+console.assert((new BigInteger("265252859812191058636308479999999")).isPrime());
+
 
 
 console.log("Testing complete.");
