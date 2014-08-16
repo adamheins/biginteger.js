@@ -1,19 +1,16 @@
-
 /**
  * Arbitrary-sized integer.
  *
+ * @constructor
+ *
  * @param {String, Number, or Array} number A representation of the magnitude of the BigInteger.
- *                         If the number is a Number or string, it is parsed into the BigInteger's
- *                         digits. If it is an array, this is taken as the digits array. If number
- *                         is null or undefined, a BigInteger with a value of zero is created.
- *
- *                         Note that leading zeroes are not permitted in the array of digits for a
- *                         BigInteger. Therefore, a BigInteger with a value of zero contains an
- *                         empty digit array.
- *
+ *     If the number is a Number or string, it is parsed into the BigInteger's digits. If it is an
+ *     array, this is taken as the digits array. If number is null or undefined, a BigInteger with a
+ *     value of zero is created.\Note that leading zeroes are not permitted in the array of digits
+ *     for a BigInteger. Therefore, a BigInteger with a value of zero contains an empty digit array.
  *
  * @param {Boolean} negative Only required when the parameter 'number' is of type Array. True if the
- *                           BigInteger is negative, false otherwise.
+ *     BigInteger is negative, false otherwise.
  *
  * @author Adam Heins
  */
@@ -98,13 +95,14 @@ BigInteger.THREE = new BigInteger(3);
 BigInteger.TEN = new BigInteger(10)
 BigInteger.NEGATIVE_ONE = new BigInteger(-1);
 
-
+// Maximum native integer.
+BigInteger.MAX_NATIVE = new BigInteger(9007199254740992);
 
 
 /**
  * Generates a random BigInteger in the range [0, limit).
  *
- * @param  {BigInteger} limit The upper bound of the generated random number (exclusive).
+ * @param {BigInteger} limit The upper bound of the generated random number (exclusive).
  *
  * @return {BigInteger} A random BigInteger in the range [0, limit).
  */
@@ -113,11 +111,11 @@ BigInteger.random = function(limit) {
     /**
      * Generates a random number in [0, numLim).
      *
-     * @param  {Number} numLim The upper limit of the generated number (exclusive).
+     * @param {Number} numLim The upper limit of the generated number (exclusive).
      *
      * @return {Number} A random number in [0, numLim).
      */
-    function randomNumber(numLim) {
+    var randomNumber = function(numLim) {
         return Math.floor(Math.random() * numLim);
     }
 
@@ -196,7 +194,7 @@ function isZeroString(str) {
 /**
  * Compares this BigInteger with another BigInteger.
  *
- * @param  {BigInteger} other The BigInteger to which this one is compared.
+ * @param {BigInteger} other The BigInteger to which this one is compared.
  *
  * @return {Number} Positive if this BigInteger is greater than 'other', 0 if they are equal,
  *                           or negative if this BigInteger is less than 'other'.
@@ -213,15 +211,16 @@ BigInteger.prototype.compare = function (other) {
     if (!this.negative && other.negative)
         return 1;
 
-    // Compare lengths.
     if (this.negative) {
+
+        // Compare lengths.
         if (this.digits.length > other.digits.length)
             return -1;
         if (this.digits.length < other.digits.length)
             return 1;
 
+        // Compare each digit until there is a difference.
         for (var i = this.digits.length - 1; i >= 0; i--) {
-
             if (this.digits[i] > other.digits[i])
                 return -1;
             if (this.digits[i] < other.digits[i])
@@ -230,11 +229,13 @@ BigInteger.prototype.compare = function (other) {
 
     } else {
 
+        // Compare lengths.
         if (this.digits.length > other.digits.length)
             return 1;
         if (this.digits.length < other.digits.length)
             return -1;
 
+        // Compare each digit until there is a difference.
         for (var i = this.digits.length - 1; i >= 0; i--) {
             if (this.digits[i] < other.digits[i])
                 return -1;
@@ -244,11 +245,6 @@ BigInteger.prototype.compare = function (other) {
     }
 
     return 0;
-    // Subtract to compare magnitude.
-    /*var result = this.subtract(other);
-    if (result.digits.length === 0)
-        return 0;
-    return result.negative ? -1 : 1;*/
 }
 
 
@@ -374,7 +370,7 @@ BigInteger.prototype.subtract = function(other) {
  * Calculates the difference between this BigInteger and another one, using the method of
  * complements.
  *
- * @param  {BigInteger} other The BigInteger to substract from this one.
+ * @param {BigInteger} other The BigInteger to substract from this one.
  *
  * @return {Number} The difference, which is always returned in absolute form.
  */
@@ -401,13 +397,11 @@ function subtractionByComplement(minuend, subtrahend) {
     // Add one to the result.
     result = result.add(BigInteger.ONE);
 
-    // Subtract one from the most significant digits.
-    var msdIndex = complement.digits.length;//result.digits.length - 1;
-    //var msd = result.digits[msdIndex]
-    //    - Math.pow(10, Math.floor(Math.log(result.digits[msdIndex]) / Math.LN10));
-    var msd = result.digits[msdIndex] - 1;
+    // Subtract one from the most significant digit.
+   // var msdIndex = complement.digits.length;
+    //var msd = result.digits[msdIndex] - 1;
 
-    result.digits[msdIndex] = msd;
+    result.digits[complement.digits.length]--;
 
     stripLeadingZeroDigits(result);
 
@@ -428,7 +422,7 @@ BigInteger.prototype.clone = function() {
 /**
  * Removes the leading zeros from the digit array of a BigInteger.
  *
- * @param  {BigInteger} number The BigInteger to be stripped.
+ * @param {BigInteger} number The BigInteger to be stripped.
  */
 function stripLeadingZeroDigits(number) {
     while (number.digits[number.digits.length - 1] === 0)
@@ -439,7 +433,7 @@ function stripLeadingZeroDigits(number) {
 /**
  * Calculates the product of this BigInteger multiplied by another.
  *
- * @param  {BigInteger} other The BigInteger by which this one will be multiplied.
+ * @param {BigInteger} other The BigInteger by which this one will be multiplied.
  *
  * @return {BigInteger} The product of the multiplication.
  */
@@ -461,10 +455,10 @@ BigInteger.prototype.multiply = function(other) {
 /**
  * Multiplies a BigInteger by a single digit, and gives it additional magnitude.
  *
- * @param  {BigInteger} number  The BigInteger to be multiplied.
- * @param  {Number} digit       The digit by which 'number' is being multiplied.
- * @param  {Number} magnitude   The number of additional digits with value 0 to prepend to the
- *                                  digit array of the result.
+ * @param {BigInteger} number The BigInteger to be multiplied.
+ * @param {Number} digit The digit by which 'number' is being multiplied.
+ * @param {Number} magnitude The number of additional digits with value 0 to prepend to the
+ *     digit array of the result.
  *
  * @return {BigInteger} The result of the multiplication.
  */
@@ -499,7 +493,7 @@ function multiplyOneDigit(number, digit, magnitude) {
 /**
  * Calculates this BigInteger raised to the power of a number.
  *
- * @param  {Number} exponent The exponent.
+ * @param {Number} exponent The exponent.
  *
  * @return {BigInteger} The result.
  */
@@ -514,7 +508,7 @@ BigInteger.prototype.pow = function(exponent) {
      *
      * @return {BigInteger} The result.
      */
-    function exponentiationBySquaring(base, exponent) {
+    var exponentiationBySquaring = function(base, exponent) {
         if (exponent === 0)
             return BigInteger.ONE;
         else if (exponent === 1)
@@ -535,16 +529,20 @@ BigInteger.prototype.pow = function(exponent) {
  * which means it is less than BigInteger.base squared.
  *
  * @param  {BigIngteger} bigIntegerDividend The BigInteger to be divided.
- * @param  {Number} number                  The number by which the BigInteger is to be divided.
+ * @param  {Number} number The number by which the BigInteger is to be divided.
  *
  * @return {BigInteger} The quotient.
  */
 function divideByNativeNumber(bigIntegerDividend, number) {
 
+    if (number === 0)
+        throw "Division by zero.";
+
     var quotient = new Array(bigIntegerDividend.digits.length);
+
+    // Make number absolute.
     var numNeg = number < 0;
     number = Math.abs(number);
-//TODO check for number = 0
 
     var carry = 0;
 
@@ -555,7 +553,8 @@ function divideByNativeNumber(bigIntegerDividend, number) {
         carry = result % number;
     }
 
-    var result = new BigInteger(quotient, bigIntegerDividend.negative ^ numNeg)
+    var result = new BigInteger(quotient, bigIntegerDividend.negative ^ numNeg);
+
     stripLeadingZeroDigits(result);
 
     return result;
@@ -563,20 +562,18 @@ function divideByNativeNumber(bigIntegerDividend, number) {
 
 
 /**
- * Calculates a 'trial' digit in long division. A trial digit is a (educated)
- * guess as to what the next digit in the division should be. The trial digit
- * is usually calculated with the first two digits of the dividend and the
- * divisor. If only one is available, then just it is used. Occasionally, when
- * the digits of the dividend are less than the divisor, we use three digits in
+ * Calculates a 'trial' digit in long division. A trial digit is a (educated) guess as to what the
+ * next digit in the division should be. The trial digit is usually calculated with the first two
+ * digits of the dividend and the divisor. If only one is available, then just it is used.
+ * Occasionally, when the digits of the dividend are less than the divisor, we use three digits in
  * the divisor.
  *
- * @param  {BigInteger} dividend          The dividend.
+ * @param  {BigInteger} dividend The dividend.
  * @param  {Number} firstTwoDivisorDigits The value of the first two digits of the divisor. These
- *                                            are not calculated in this function because they
- *                                            are static for the entire division and modulo
- *                                            algorithms.
- * @param  {Boolean} useThreeDigits       True if three digits should be taken into account for the
- *                                            divisor, false otherwise.
+ *     are not calculated in this function because they are static for the entire division and
+ *     modulo algorithms.
+ * @param  {Boolean} useThreeDigits True if three digits should be taken into account for the
+ *     divisor, false otherwise.
  *
  * @return {Number} The value of the trial digit.
  */
@@ -629,12 +626,12 @@ BigInteger.prototype.divide = function(other) {
 
     // If the dividend is less than the divisor, zero can be immediately returned.
     if (dividend.compare(divisor) < 0)
-        return new BigInteger("0"); //TODO constant for zero, 1, 2, 10, -1
+        return new BigInteger("0");
 
     // If the dividend is less than the value of the maximum JS number, primitive
     // division can be used. Note that 'this' and 'other' are used instead of
     // 'dividend' and 'divisor' to maintain sign value.
-    if (dividend.compare(new BigInteger("4000000000000")) < 0) {
+    if (dividend.compare(BigInteger.MAX_NATIVE) < 0) {
         var negativeMultiplier = (this.negative ^ other.negative) ? -1 : 1;
         var magnitude = Math.floor(Math.abs(this.toNumber() / other.toNumber()));
         return new BigInteger(negativeMultiplier * magnitude);
@@ -642,7 +639,7 @@ BigInteger.prototype.divide = function(other) {
 
     // If the divisor is less than the value of the base squared, a simpler long division
     // algorithm can be used.
-    if (divisor.compare(new BigInteger("4000000000000")) < 0)
+    if (divisor.compare(BigInteger.MAX_NATIVE) < 0)
         return divideByNativeNumber(this, other.toNumber());
 
     // useThreeDigits flag indicates we are going to include two digits from the divisor in our
@@ -714,29 +711,20 @@ BigInteger.prototype.divide = function(other) {
 }
 
 
-/*
-
-function remainder(x: number;
-k: integer): number;
-var carry, i, m: integer;
-begin
-m := length(x); carry := 0;
-for i := m − 1 downto 0 do
-carry := (carry∗b + x[i]) mod k;
-remainder := value(carry)
-end;
-
+/**
+ * Calculates the remainder of this BigInteger divided by a Number.
+ *
+ * @param  {Number} mod The modulus.
+ *
+ * @return {BigInteger} The remainder of this divided by mod.
  */
-
 BigInteger.prototype.remainder = function(mod) {
     var carry = 0;
 
     for (var i = this.digits.length - 1; i >= 0; i--)
         carry = (carry * this.base + this.digits[i]) % mod;
     return new BigInteger(carry);
-}
-
-
+} //TODO maybe should not be a member
 
 
 /**
@@ -756,20 +744,19 @@ BigInteger.prototype.modulo = function(other) {
     if (dividend.compare(divisor) < 0)
         return dividend;
 
-    // If the dividend is less than the value of the maximum JS number, primitive
-    // modulo can be used. Note that 'this' and 'other' are used instead of
-    // 'dividend' and 'divisor' to maintain sign value.
-    if (dividend.compare(new BigInteger("4000000000000")) < 0) {
+    // If the dividend is less than the value of the maximum JS number, primitive modulo can be
+    // used. Note that 'this' and 'other' are used instead of 'dividend' and 'divisor' to maintain
+    // sign value.
+    if (dividend.compare(BigInteger.MAX_NATIVE) < 0)
         return new BigInteger(Math.floor(this.toNumber() % other.toNumber()));
-    }
 
-    if (divisor.compare(new BigInteger("4000000000000")) < 0)
+    if (divisor.compare(new BigInteger(this.base)) < 0)
         return this.remainder(other.toNumber());
 
     // useThreeDigits flag indicates we are going to include two digits from the divisor in our
-    // trial digit calculation. This occurs when the first digit is smaller than that
-    // of the divisor. That digit in the quotient is filled with a zero and we move
-    // onto the next, but we must include the unused previous digit from the dividend.
+    // trial digit calculation. This occurs when the first digit is smaller than that of the
+    // divisor. That digit in the quotient is filled with a zero and we move onto the next, but we
+    // must include the unused previous digit from the dividend.
     var useThreeDigits = false;
 
     // Position indicates the current place in the quotient for which we are calculating a digit.
@@ -858,14 +845,10 @@ BigInteger.prototype.modPow = function(exponent, modulus) {
 
     while (e.compare(BigInteger.ZERO) > 0) {
         if (e.isEven()) {
-
             a = a.multiply(a).modulo(modulus);
-
             e = divideByNativeNumber(e, 2);
         } else {
-            //console.log("x=" + x + "*" + a + "%" + modulus);
             x = x.multiply(a).modulo(modulus);
-            //console.log("=" + x);
             e = e.subtract(BigInteger.ONE);
         }
     }
@@ -881,14 +864,15 @@ BigInteger.prototype.modPow = function(exponent, modulus) {
  * prime.
  *
  * @param  {Number}  witnessLoops The number of witness loops through which to iterate. More loops
- *                                reduce the chance of incorrectly identifying composite numbers as
- *                                prime.
- * @return {Boolean}              [description]
+ *    reduce the chance of incorrectly identifying composite numbers as prime.
+ *
+ * @return {Boolean} True if the number is probably prime, false otherwise.
  */
 BigInteger.prototype.isPrime = function(witnessLoops) {
 
     // Check for an incorrect parameter.
-    if (witnessLoops != undefined && (witnessLoops === null || typeof(witnessLoops) != "number" || witnessLoops < 1))
+    if (witnessLoops != undefined && (witnessLoops === null || typeof(witnessLoops) != "number"
+            || witnessLoops < 1))
         throw "Number of witness loops must be a positive integer."
 
     if (this.compare(BigInteger.ONE) <= 0)
@@ -909,21 +893,19 @@ BigInteger.prototype.isPrime = function(witnessLoops) {
 
     var count = 0;
 
-//console.log(this + "");
-//console.log(nSub1.toString());
     // Factor out power of two from the number.
     while (d.isEven()) {
         d = divideByNativeNumber(d, 2);
         count++;
     }
- //console.log(d + "        " + count);
+
     for (var i = 0; i < witnessLoops; i++) {
 
         // Random integer in [2, n - 2].
         var a = BigInteger.random(this.subtract(BigInteger.THREE)).add(BigInteger.TWO);
 
         var x = a.modPow(d, this);
-        //console.log(x + "=" + a + "^" + d + "%" + this);
+
         if (x.compare(BigInteger.ONE) === 0 || x.compare(nSub1) === 0)
             continue;
 
@@ -963,6 +945,7 @@ var numNeg4E20 = new BigInteger("-400000000000000000000");
 var numNeg7E16 = new BigInteger("-70000000000000000");
 var numNeg2E16 = new BigInteger("-20000000000000000");
 
+
 /** Test the constructor **/
 
 console.assert((new BigInteger("0")).compare(BigInteger.ZERO) === 0);
@@ -970,7 +953,7 @@ console.assert((new BigInteger("0")).compare(BigInteger.ZERO) === 0);
 console.assert((new BigInteger(0)).compare(BigInteger.ZERO) === 0);
 
 
-/** Test BigInteger.toString() **/
+/** Test toString() **/
 
 // Test toString() with an empty constructor.
 console.assert((new BigInteger()).toString() === "0")
@@ -986,7 +969,7 @@ console.assert(numNeg5E6.toString() === "-5000000");
 console.assert(numNeg1E5.toString() === "-100000");
 
 
-/** Test BigInteger.compare(...) **/
+/** Test compare(...) **/
 
 // Test === with positive number, multiple digits.
 console.assert(num9E6.compare(new BigInteger("9000000")) === 0);
@@ -1019,7 +1002,7 @@ console.assert(numNeg9E6.compare(numNeg5E6) < 0);
 console.assert(numNeg5E6.compare(numNeg800) < 0);
 
 
-/** Test addition **/
+/** Test add(...) **/
 
 // Test addition with two positive numbers.
 console.assert(num9E6.add(num5E6).compare(new BigInteger("14000000")) === 0);
@@ -1034,7 +1017,7 @@ console.assert(num9E6.add(numNeg5E6).compare(new BigInteger("4000000")) === 0);
 console.assert(numNeg9E6.add(num5E6).compare(new BigInteger("-4000000")) === 0);
 
 
-/** Test BigInteger.subtract(...) **/
+/** Test subtract(...) **/
 
 // Test subtraction with a positive number minus itself.
 console.assert(num5E6.subtract(num5E6).compare(BigInteger.ZERO) === 0);
@@ -1060,8 +1043,11 @@ console.assert(numNeg9E6.subtract(num5E6).compare(new BigInteger("-14000000")) =
 // Test subtraction with positive - negative.
 console.assert(num9E6.subtract(numNeg5E6).compare(new BigInteger("14000000")) === 0);
 
+// Test a number beginning with a 1, minus 1.
+console.assert((new BigInteger(15000000)).subtract(BigInteger.ONE).compare(new BigInteger(14999999)) === 0);
 
-/** Test BigInteger.multiply(...) **/
+
+/** Test multiply(...) **/
 
 // Test multiply with result greater order of magnitude than factors.
 console.assert(num800.multiply(num1E5).compare(new BigInteger("80000000")) === 0);
@@ -1076,7 +1062,7 @@ console.assert(numNeg9E6.multiply(numNeg5E6).compare(new BigInteger("45000000000
 console.assert(numNeg9E6.multiply(num5E6).compare(new BigInteger("-45000000000000")) === 0);
 
 
-/** Test BigInteger.divide(...) **/
+/** Test divide(...) **/
 
 // Test division with number dividing itself.
 console.assert(num9E6.divide(num9E6).compare(new BigInteger("1")) === 0);
@@ -1112,7 +1098,7 @@ console.assert(num4E20.divide(num7E16).compare(new BigInteger(5714)) === 0);
 console.assert(num2E16.divide(new BigInteger("2000000000001234")).compare(new BigInteger(9)) === 0);
 
 
-/** Test BigInteger.modulo(...) **/
+/** Test modulo(...) **/
 
 // Test modulo with the same number.
 console.assert(num7E16.modulo(num7E16).compare(BigInteger.ZERO)  === 0);
@@ -1121,7 +1107,7 @@ console.assert(num7E16.modulo(num7E16).compare(BigInteger.ZERO)  === 0);
 console.assert(num2E16.modulo(num7E16).compare(num2E16)  === 0);
 
 
-/** Test BigInteger.isEven() **/
+/** isEven() **/
 
 // Test with zero.
 console.assert(BigInteger.ZERO.isEven());
@@ -1159,11 +1145,8 @@ console.assert((new BigInteger(11)).isPrime());
 // Test a composite number divisible by 2.
 console.assert(!(new BigInteger("1000000000000000000000000")).isPrime());
 
-
-
 // Test a composite number divisible by 3.
 console.assert(!(new BigInteger("3333333333333333333333333")).isPrime());
-
 
 // Test large composite only divisible by primes greater than 10,000.
 console.assert(!(new BigInteger(8226930013)).isPrime());
@@ -1183,10 +1166,21 @@ console.assert((new BigInteger(735632797)).isPrime());
 console.assert((new BigInteger(4398042316799)).isPrime());
 console.assert((new BigInteger("18014398241046527")).isPrime());
 
-// Test large primes (more than four digits).
+// Test large primes (four or more digits).
+console.assert((new BigInteger("18446744082299486207")).isPrime());
+console.assert((new BigInteger("523347633027360537213687137")).isPrime());
 console.assert((new BigInteger("1066340417491710595814572169")).isPrime());
+console.assert((new BigInteger("10888869450418352160768000001")).isPrime());
+console.assert((new BigInteger("19134702400093278081449423917")).isPrime());
+console.assert((new BigInteger("162259276829213363391578010288127")).isPrime());
 console.assert((new BigInteger("265252859812191058636308479999999")).isPrime());
-
+console.assert((new BigInteger("1298074214633706835075030044377087")).isPrime());
+console.assert((new BigInteger("263130836933693530167218012159999999")).isPrime());
+console.assert((new BigInteger("8683317618811886495518194401279999999")).isPrime());
+console.assert((new BigInteger("43143988327398957279342419750374600193")).isPrime());
+console.assert((new BigInteger("35742549198872617291353508656626642567")).isPrime());
+console.assert((new BigInteger("393050634124102232869567034555427371542904833")).isPrime());
+console.assert((new BigInteger("359334085968622831041960188598043661065388726959079837")).isPrime());
 
 
 console.log("Testing complete.");
