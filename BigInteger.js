@@ -44,7 +44,13 @@ function BigInteger(number, negative) {
         }
 
         // Check if the number is simply zero.
-        if (isZeroString(number)) {
+        if ((function(str){
+            for (var i = 0; i < str.length; i++) {
+                if (str.charAt(i) !== '0')
+                    return false;
+            }
+            return true;
+        })(number)) {
             this.digits = [];
             this.negative = false;
             return;
@@ -175,19 +181,22 @@ BigInteger.prototype.toNumber = function() {
 
 
 /**
- * Checks if a string represents zero. Instead of simply using parseInt(string) === 0, this function
- * is used in case the string is not able to be parse to an integer.
+ * Returns a new BigInteger that is the absolute value of this BigInteger.
  *
- * @param  {String}  str The string to check.
- *
- * @return {Boolean} True if the string represents zero, false otherwise.
+ * @return {BigInteger} The absolute value of this BigInteger.
  */
-function isZeroString(str) {
-    for (var i = 0; i < str.length; i++) {
-        if (str.charAt(i) !== '0')
-            return false;
-    }
-    return true;
+BigInteger.prototype.abs = function() {
+    return new BigInteger(this.digits, false);
+}
+
+
+/**
+ * Returns a new BigInteger with the opposite sign of this BigInteger.
+ *
+ * @return {BigInteger} A BigInteger with the opposite sign of this BigInteger.
+ */
+BigInteger.prototype.negate = function() {
+    return new BigInteger(this.digits, !this.negative);
 }
 
 
@@ -197,7 +206,7 @@ function isZeroString(str) {
  * @param {BigInteger} other The BigInteger to which this one is compared.
  *
  * @return {Number} Positive if this BigInteger is greater than 'other', 0 if they are equal,
- *                           or negative if this BigInteger is less than 'other'.
+ *     or negative if this BigInteger is less than 'other'.
  */
 BigInteger.prototype.compare = function (other) {
 
@@ -278,10 +287,10 @@ BigInteger.prototype.add = function(other) {
 /**
  * Calculates the sum of two BigIntegers using a standard long addition algorithm.
  *
- * @param  {BigInteger} firstNumber  The first BigInteger being added.
- * @param  {BigInteger} secondNumber The second BigInteger being added.
+ * @param {BigInteger} firstNumber The first BigInteger being added.
+ * @param {BigInteger} secondNumber The second BigInteger being added.
  *
- * @return {BigInteger} The sum.
+ * @return {BigInteger} The sum of the two BigIntegers.
  */
 function longAddition(firstNumber, secondNumber) {
     var newDigits = [];
@@ -712,22 +721,6 @@ BigInteger.prototype.divide = function(other) {
 
 
 /**
- * Calculates the remainder of this BigInteger divided by a Number.
- *
- * @param  {Number} mod The modulus.
- *
- * @return {BigInteger} The remainder of this divided by mod.
- */
-BigInteger.prototype.remainder = function(mod) {
-    var carry = 0;
-
-    for (var i = this.digits.length - 1; i >= 0; i--)
-        carry = (carry * this.base + this.digits[i]) % mod;
-    return new BigInteger(carry);
-} //TODO maybe should not be a member
-
-
-/**
  * Calculates the result of this BigInteger modulo another BigInteger.
  *
  * @param  {BigInteger} other The modulus.
@@ -750,8 +743,15 @@ BigInteger.prototype.modulo = function(other) {
     if (dividend.compare(BigInteger.MAX_NATIVE) < 0)
         return new BigInteger(Math.floor(this.toNumber() % other.toNumber()));
 
+    // If the divisor is smaller than a single digit, we can use a simpler function to calculate the
+    // remainder.
     if (divisor.compare(new BigInteger(this.base)) < 0)
-        return this.remainder(other.toNumber());
+        return (function(number, mod){
+            var carry = 0;
+            for (var i = number.digits.length - 1; i >= 0; i--)
+                carry = (carry * number.base + number.digits[i]) % mod;
+            return new BigInteger(carry);
+        })(this, other.toNumber());
 
     // useThreeDigits flag indicates we are going to include two digits from the divisor in our
     // trial digit calculation. This occurs when the first digit is smaller than that of the
