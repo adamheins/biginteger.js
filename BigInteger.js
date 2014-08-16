@@ -266,21 +266,21 @@ BigInteger.prototype.compare = function (other) {
  * @return {BigInteger} The sum of this BigInteger and 'other'.
  */
 BigInteger.prototype.add = function(other) {
-    if (this.negative && other.negative) {
-        var result = longAddition(this, other);
-        result.negative = true;
-        return result;
-    } else if (!this.negative && !other.negative) {
-        var result = longAddition(this, other);
-        result.negative = false;
-        return result;
-    } else if (this.negative && !other.negative) {
-        var positiveThis = new BigInteger(this.digits, false);
-        return other.subtract(positiveThis);
-    } else {
-        var positiveOther = new BigInteger(other.digits, false);
-        return this.subtract(positiveOther);
-    }
+
+    // Case where both numbers are negative.
+    if (this.negative && other.negative)
+        return longAddition(this, other).negate();
+
+    // Case where both numbers are positive.
+    if (!this.negative && !other.negative)
+        return longAddition(this, other);
+
+    // Case of this being negative, other being positive.
+    if (this.negative && !other.negative)
+        return other.subtract(this.abs());
+
+    // Case of this being positive, other being negative.
+    return this.subtract(other.abs());
 }
 
 
