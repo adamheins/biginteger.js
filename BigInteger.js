@@ -201,6 +201,16 @@ BigInteger.prototype.negate = function() {
 
 
 /**
+ * Convenience method to check if this BigInteger is equal to zero.
+ *
+ * @return {Boolean} True if this BigInteger has a value of zero, false otherwise.
+ */
+BigInteger.prototype.isZero = function() {
+    return this.digits.length === 0;
+}
+
+
+/**
  * Compares this BigInteger with another BigInteger.
  *
  * @param {BigInteger} other The BigInteger to which this one is compared.
@@ -213,6 +223,10 @@ BigInteger.prototype.compare = function (other) {
     // Check if other is null, undefined, or not a BigInteger.
     if (other === null || other === undefined || other.constructor !== BigInteger)
         throw "Object being compared is not a valid BigInteger.";
+
+    // Check for the special case of zero.
+    if (this.isZero() && other.isZero())
+        return 0;
 
     // Compare signs.
     if (this.negative && !other.negative)
@@ -267,9 +281,51 @@ BigInteger.prototype.compare = function (other) {
  */
 BigInteger.prototype.add = function(other) {
 
+    // Check for addition of zero.
+    if (other.isZero())
+        return this;
+
+    /**
+     * Calculates the sum of two BigIntegers using a standard long addition algorithm.
+     *
+     * @param {BigInteger} firstNumber The first BigInteger being added.
+     * @param {BigInteger} secondNumber The second BigInteger being added.
+     *
+     * @return {BigInteger} The sum of the two BigIntegers.
+     */
+    var longAddition = function(firstNumber, secondNumber) {
+        var newDigits = [];
+
+        var numDigits = Math.max(firstNumber.digits.length, secondNumber.digits.length);
+        var carry = 0;
+
+        for (var i = 0; i < numDigits; i++) {
+            var result;
+            if (i >= firstNumber.digits.length)
+                result = secondNumber.digits[i] + carry;
+            else if (i >= secondNumber.digits.length)
+                result = firstNumber.digits[i] + carry;
+            else
+                result = firstNumber.digits[i] + secondNumber.digits[i] + carry;
+
+            carry = Math.floor(result / firstNumber.base);
+            result = result % firstNumber.base;
+            newDigits[i] = result;
+        }
+
+        // Add an extra digit if the carry is not zero.
+        if (carry !== 0)
+            newDigits[numDigits] = carry;
+
+        return new BigInteger(newDigits, false);
+    }
+
     // Case where both numbers are negative.
-    if (this.negative && other.negative)
-        return longAddition(this, other).negate();
+    if (this.negative && other.negative) {
+        var sum = longAddition(this, other);
+        sum.negative = true;
+        return sum;
+    }
 
     // Case where both numbers are positive.
     if (!this.negative && !other.negative)
@@ -285,42 +341,6 @@ BigInteger.prototype.add = function(other) {
 
 
 /**
- * Calculates the sum of two BigIntegers using a standard long addition algorithm.
- *
- * @param {BigInteger} firstNumber The first BigInteger being added.
- * @param {BigInteger} secondNumber The second BigInteger being added.
- *
- * @return {BigInteger} The sum of the two BigIntegers.
- */
-function longAddition(firstNumber, secondNumber) {
-    var newDigits = [];
-
-    var numDigits = Math.max(firstNumber.digits.length, secondNumber.digits.length);
-    var carry = 0;
-
-    for (var i = 0; i < numDigits; i++) {
-        var result;
-        if (i >= firstNumber.digits.length)
-            result = secondNumber.digits[i] + carry;
-        else if (i >= secondNumber.digits.length)
-            result = firstNumber.digits[i] + carry;
-        else
-            result = firstNumber.digits[i] + secondNumber.digits[i] + carry;
-
-        carry = Math.floor(result / firstNumber.base);
-        result = result % firstNumber.base;
-        newDigits[i] = result;
-    }
-
-    // Add an extra digit if the carry is not zero.
-    if (carry !== 0)
-        newDigits[numDigits] = carry;
-
-    return new BigInteger(newDigits, false);
-}
-
-
-/**
  * Calculates the difference between this BigInteger and another one. This function makes calls to
  * private addition and subtraction functions depending on the signs and magnitudes of the numbers
  * involved.
@@ -331,105 +351,82 @@ function longAddition(firstNumber, secondNumber) {
  */
 BigInteger.prototype.subtract = function(other) {
 
+    // Check for subtraction of zero.
+    if (other.isZero())
+        return this;
+
+    // If the numbers do not have the same sign, add the complement of other to this BigInteger.
+    if (this.negative ^ other.negative)
+        return this.add(other.negate());
+
+    /**
+     * Calculates the difference between this BigInteger and another one, using the method of
+     * complements.
+     *
+     * @param {BigInteger} other The BigInteger to substract from this one.
+     *
+     * @return {Number} The difference, which is always returned in absolute form.
+     */
+    var subtractionByComplement = function(minuend, subtrahend) {
+
+        var newDigits = new Array(subtrahend.digits.length);
+        var complement = new BigInteger(newDigits, false);
+
+        // Compute the complement of the subtrahend.
+        for (var i = 0; i < subtrahend.digits.length; i++)
+            complement.digits[i] = minuend.base - 1 - subtrahend.digits[i];
+
+        // Add this and complement.
+        var result = minuend.add(complement);
+
+        // Add one to the result.
+        result = result.add(BigInteger.ONE);
+
+        // Subtract one from the most significant digit.
+        result.digits[complement.digits.length]--;
+
+        stripLeadingZeroDigits(result);
+
+        return result;
+    }
+
+    // Both numbers are negative.
     if (this.negative) {
-        if (other.negative) {
-            if (this.compare(other) < 0) {
 
-                    // Subtract other from this, result negative.
-                    var result = subtractionByComplement(this, other);
-                    result.negative = true;
-                    return result;
-            } else {
+        // This BigInteger is less than other.
+        if (this.compare(other) < 0) {
+            var difference = subtractionByComplement(this.abs(), other.abs());
+            difference.negative = true;
+            return difference;
 
-                    // Subtract this from other, result positive.
-                    var result = subtractionByComplement(other, this);
-                    result.negative = false;
-                    return result;
-            }
+        // This BigInteger is greater than or equal to other.
         } else {
-            var result = longAddition(this, other);
-            result.negative = true;
-            return result;
+            var difference = subtractionByComplement(other.abs(), this.abs());
+            difference.negative = false;
+            return difference;
         }
+
+    // Both numbers are positive.
     } else {
-        if (other.negative) {
-            var result = longAddition(this, other);
-            result.negative = false;
-            return result;
+
+        // This BigInteger is greater than or equal to other.
+        if (this.compare(other) >= 0) {
+            var difference = subtractionByComplement(this.abs(), other.abs());
+            difference.negative = false;
+            return difference;
+
+        // This BigInteger is less than other.
         } else {
-            if (this.compare(other) >= 0) {
-
-                    // Subtract other from this, result negative.
-                    var result = subtractionByComplement(this, other);
-                    result.negative = false;
-                    return result;
-            } else {
-
-                    // Subtract this from other, result positive.
-                    var result = subtractionByComplement(other, this);
-                    result.negative = true;
-                    return result;
-            }
+            var difference = subtractionByComplement(other.abs(), this.abs());
+            difference.negative = true;
+            return difference;
         }
     }
 }
 
 
 /**
- * Calculates the difference between this BigInteger and another one, using the method of
- * complements.
- *
- * @param {BigInteger} other The BigInteger to substract from this one.
- *
- * @return {Number} The difference, which is always returned in absolute form.
- */
-function subtractionByComplement(minuend, subtrahend) {
-
-    // Create positive version of this and the other.
-    var posMinuend = new BigInteger(minuend.digits, false); //TODO may be redundant
-    var posSubtrahend = new BigInteger(subtrahend.digits, false);
-
-    // Return a copy of this BigInteger if the other number is zero/empty.
-    if (posSubtrahend.digits.length === 0)
-        return new BigInteger(posMinuend.digits);
-
-    var newDigits = new Array(posSubtrahend.digits.size);
-    var complement = new BigInteger(newDigits, false);
-
-    // Compute the complement of the subtrahend.
-    for (var i = 0; i < posSubtrahend.digits.length; i++)
-        complement.digits[i] = posMinuend.base - 1 - posSubtrahend.digits[i];
-
-    // Add this and complement.
-    var result = posMinuend.add(complement);
-
-    // Add one to the result.
-    result = result.add(BigInteger.ONE);
-
-    // Subtract one from the most significant digit.
-   // var msdIndex = complement.digits.length;
-    //var msd = result.digits[msdIndex] - 1;
-
-    result.digits[complement.digits.length]--;
-
-    stripLeadingZeroDigits(result);
-
-    return result;
-}
-
-
-//TODO deal with later...
-BigInteger.prototype.clone = function() {
-    var array = new Array(this.digits.length);
-    for (var i = 0; i < array.length; i++) {
-        array[i] = this.digits[i];
-    }
-    return new BigInteger(array, this.negative);
-}
-
-
-/**
- * Removes the leading zeros from the digit array of a BigInteger.
+ * Helper function that removes the leading zeros from the digit array of a BigInteger.
  *
  * @param {BigInteger} number The BigInteger to be stripped.
  */
