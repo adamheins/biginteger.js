@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Arbitrary-sized integer.
  *
@@ -855,9 +857,9 @@ BigInteger.prototype.divide = function(other) {
         // Calculate product of current quotient and divisor.
         var product = multiplyOneDigit(divisor, qt, pos);
 
-        // If the product is greater than the actual quotient, obviously the
-        // trial digit is too large. It is only possible for the trial digit to
-        // be too large by 1, so be subtract 1 and are left with the correct digit.
+        // If the product is greater than the actual quotient, then the trial digit is too large. It
+        // is only possible for the trial digit to be too large by 1, so be subtract 1 and are left
+        // with the correct digit.
         if (product.compare(dividend) > 0) {
             qt--;
             product = multiplyOneDigit(divisor, qt, pos);
@@ -880,8 +882,8 @@ BigInteger.prototype.divide = function(other) {
         // Calculate the new position in the quotient.
         pos = dividend.digits.length - divisor.digits.length;
 
-        // If the MSD of the dividend is less than the MSD of the divisor,
-        // reduce position and activate flag.
+        // If the MSD of the dividend is less than the MSD of the divisor, reduce position and
+        // activate flag.
         if (pos >= 0 && firstTwoDivisorDigits > firstTwoDigits(dividend)) {
             pos--;
             useThreeDigits = true;
@@ -933,8 +935,8 @@ BigInteger.prototype.modulo = function(other) {
 
     // useThreeDigits flag indicates we are going to include two digits from the divisor in our
     // trial digit calculation. This occurs when the first digit is smaller than that of the
-    // divisor. That digit in the quotient is filled with a zero and we move onto the next, but we
-    // must include the unused previous digit from the dividend.
+    // divisor. That digit in the quotient is a zero and we move onto the next one, but we must
+    // include the unused previous digit from the dividend.
     var useThreeDigits = false;
 
     // Position indicates the current place in the quotient for which we are calculating a digit.
@@ -959,9 +961,9 @@ BigInteger.prototype.modulo = function(other) {
         // Calculate product of current quotient and divisor.
         var product = multiplyOneDigit(divisor, qt, pos);
 
-        // If the product is greater than the actual quotient, obviously the
-        // trial digit is too large. It is only possible for the trial digit to
-        // be too large by 1, so be subtract 1 and are left with the correct digit.
+        // If the product is greater than the actual quotient, then the trial digit is too large. It
+        // is only possible for the trial digit to be too large by 1, so be subtract 1 and are left
+        // with the correct digit.
         if (product.compare(dividend) > 0) {
             qt--;
             product = multiplyOneDigit(divisor, qt, pos);
@@ -981,8 +983,8 @@ BigInteger.prototype.modulo = function(other) {
         // Calculate the new position in the quotient.
         pos = dividend.digits.length - divisor.digits.length;
 
-        // If the MSD of the dividend is less than the MSD of the divisor,
-        // reduce position and activate flag.
+        // If the MSD of the dividend is less than the MSD of the divisor, reduce position and
+        // activate flag.
         if (pos >= 0 && firstTwoDivisorDigits > firstTwoDigits(dividend)) {
             pos--;
             useThreeDigits = true;
