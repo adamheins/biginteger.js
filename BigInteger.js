@@ -19,10 +19,10 @@ function BigInteger(number, negative) {
     // The base of the BigInteger. Each digit cannot be larger than this base. A base of 1,000,000
     // was chosen because 1,000,000 ^ 2 still fits nicely into a native Number object (useful for
     // multiplication).
-    this.base = BASE;
+    this.base = 1000000;
 
     // The base 10 logarithm of the base.
-    this.logbase = LOG_BASE;
+    var logbase = 6;
 
     // Null or undefined parameters results in a BigInteger of 0.
     if (number === null || number === undefined) {
@@ -50,16 +50,16 @@ function BigInteger(number, negative) {
         }
 
         // Parse the digits of the number.
-        var numDigits = Math.ceil(number.length / this.logbase);
+        var numDigits = Math.ceil(number.length / logbase);
         this.digits = new Array(numDigits);
 
-        var excess = number.length % this.logbase;
-        excess = excess == 0 ? this.logbase : excess;
+        var excess = number.length % logbase;
+        excess = excess == 0 ? logbase : excess;
         this.digits[numDigits - 1] = parseInt(number.substr(0, excess));
 
         for (var i = 1; i < numDigits; i++) {
-            this.digits[i - 1] = parseInt(number.substr(number.length - this.logbase * i,
-                this.logbase));
+            this.digits[i - 1] = parseInt(number.substr(number.length - logbase * i,
+                logbase));
         }
 
     // Number is actually a number.
@@ -83,10 +83,17 @@ function BigInteger(number, negative) {
         this.negative = negative;
         this.numberString = null;
     }
+
+    //TODO implement properly
+    this.isNegative = function() {
+        return this.negative;
+    }
+
+    this.getBase = function() {
+        return this.base;
+    }
 }
 
-var BASE = 1000000;
-var LOG_BASE = 6;
 
 // Useful, common constants.
 BigInteger.ZERO = new BigInteger();
@@ -96,7 +103,7 @@ BigInteger.THREE = new BigInteger(3);
 BigInteger.TEN = new BigInteger(10)
 BigInteger.NEGATIVE_ONE = new BigInteger(-1);
 
-BigInteger.BASE = new BigInteger(BASE);
+BigInteger.BASE = new BigInteger(1000000);
 
 // Maximum native integer.
 BigInteger.MAX_NATIVE = new BigInteger(9007199254740992);
@@ -204,7 +211,7 @@ BigInteger.valueOf = function(str, base) {
                     return parseInt(digit);
                 digit = digit.toUpperCase();
                 return "ABCDEFGHIJKLMNOPQRSTUVWXYZ".indexOf(digit) + 10;
-            })(str.charAt(str.length - 1 - i))));
+            })(str.charAt(str.length - 1 - i)));
 
         // If the digit is not zero, add the digit times the multipier to the result.
         if (!bigDigit.isZero())
@@ -258,7 +265,7 @@ BigInteger.prototype.toString = function(base) {
     var currentValue = this;
     var bigBase = new BigInteger(base);
 
-    while (currentValue.compare(BigInteger.ZERO) > 0) {
+    while (!currentValue.isZero()) {
 
         // Get the string representation of the next digit.
         var newDigit = (function(digit) {
@@ -284,7 +291,18 @@ BigInteger.prototype.toString = function(base) {
  * @return {Number} The Number representation of this BigInteger.
  */
 BigInteger.prototype.toNumber = function() {
-    return parseInt(this.toString());
+    if (this.abs().compare(BigInteger.MAX_NATIVE) > 0)
+        throw 'Value is to large to be represented by a Number.';
+
+    var value  = 0;
+    var multiplier = 1;
+
+    for (var i = 0; i < this.digits.length; i++) {
+        value += this.digits[i] * multiplier;
+        multiplier *= this.base;
+    }
+
+    return (this.negative ? -1 : 1) * value;
 }
 
 
@@ -703,6 +721,8 @@ function firstTwoDigits(number) {
  */
 BigInteger.prototype.divide = function(other) {
 
+
+
     // Create positive versions of this and other.
     var dividend = this.abs();
     var divisor = other.abs();
@@ -724,6 +744,7 @@ BigInteger.prototype.divide = function(other) {
     // algorithm can be used.
     if (divisor.compare(BigInteger.MAX_NATIVE) < 0)
         return divideByNativeNumber(this, other.toNumber());
+
 
     // useThreeDigits flag indicates we are going to include two digits from the divisor in our
     // trial digit calculation. This occurs when the first digit is smaller than that
@@ -802,6 +823,10 @@ BigInteger.prototype.divide = function(other) {
  * @return {BigInteger} The result.
  */
 BigInteger.prototype.modulo = function(other) {
+
+    // Throw an exception for a modulus of zero.
+    if (other.isZero())
+        throw "Modulus cannot be zero.";
 
     // Create positive versions of this and other.
     var dividend = this.abs();
@@ -899,6 +924,14 @@ BigInteger.prototype.modulo = function(other) {
  */
 BigInteger.prototype.pow = function(exponent) {
 
+    // Throw an error is exponent is NaN.
+    if (typeof(exponent) !== 'number')
+        throw 'Exponent is not a number.';
+
+    // Throw an error if the exponent is negative.
+    if (exponent < 0)
+        throw 'Negative exponent.';
+
     /**
      * Calculates the result of one BigInteger raised to the power of a number using the
      * exponentiation by squaring method.
@@ -931,6 +964,10 @@ BigInteger.prototype.pow = function(exponent) {
  * @return {BigInteger} The result of the modPow operation.
  */
 BigInteger.prototype.modPow = function(exponent, modulus) {
+
+    // Throw an error if the exponent is negative.
+    if (exponent.negative)
+        throw "Negative exponent.";
 
     var result = BigInteger.ONE;
     var base = this;
@@ -1047,21 +1084,52 @@ console.assert((new BigInteger("0")).compare(BigInteger.ZERO) === 0);
 
 console.assert((new BigInteger(0)).compare(BigInteger.ZERO) === 0);
 
+console.assert((new BigInteger("")).compare(BigInteger.ZERO) === 0);
+
 
 /** Test toString() **/
 
 // Test toString() with an empty constructor.
-console.assert((new BigInteger()).toString() === "0")
+console.assert((new BigInteger()).toString() === '0')
 
 // Test BigInteger.toString() with positive number, multiple digits.
-console.assert(num9E6.toString() === "9000000");
+console.assert(num9E6.toString() === '9000000');
 
 // Test BigInteger.toString() with negative number, multiple digits.
-console.assert(numNeg5E6.toString() === "-5000000");
+console.assert(numNeg5E6.toString() === '-5000000');
 
-// Test BigInteger.toString() with positive number, one digit,
-// with only one decimal order of magnitude less than BigInteger.base.
-console.assert(numNeg1E5.toString() === "-100000");
+// Test BigInteger.toString() with positive number, one digit, with only one decimal order of
+// magnitude less than BigInteger.base.
+console.assert(numNeg1E5.toString() === '-100000');
+
+// Test conversion to a lower base.
+console.assert((new BigInteger(8)).toString(2) === '1000');
+
+// Test convervion to a base higher than decimal.
+console.assert((new BigInteger(123456789)).toString(16) === '75BCD15');
+
+
+/** Test toNumber() **/
+
+// Test with zero.
+console.assert(BigInteger.ZERO.toNumber() === 0);
+
+// Test with a negative number constructed from a number.
+console.assert((new BigInteger("-1234567")).toNumber() === -1234567);
+
+// Test with a positive number constructed from a number.
+console.assert((new BigInteger(11223344)).toNumber() === 11223344);
+
+
+/** Test valueOf() **/
+
+console.assert(BigInteger.valueOf("1234567890", 10).compare(new BigInteger("1234567890")) === 0);
+
+console.assert(BigInteger.valueOf("100000000", 2).compare(new BigInteger(256)) === 0);
+
+console.assert(BigInteger.valueOf("ffffff", 16).compare(new BigInteger(16777215)) === 0);
+
+console.assert(BigInteger.valueOf("nameisadam", 30).compare(new BigInteger("459761806362022")) === 0);
 
 
 /** Test compare(...) **/
@@ -1201,8 +1269,54 @@ console.assert(num7E16.modulo(num7E16).compare(BigInteger.ZERO)  === 0);
 // Test modulo with smaller number % larger number.
 console.assert(num2E16.modulo(num7E16).compare(num2E16)  === 0);
 
+// Test with a negative number.
+console.assert((new BigInteger("-1234567890")).modulo(new BigInteger(4545454)).compare(new BigInteger(-2749856)) === 0);
 
-/** isEven() **/
+// Test with large numbers.
+console.assert((new BigInteger("135546343434234528")).modulo(new BigInteger("54657342556")).compare(new BigInteger("14566676004")) === 0);
+console.assert((new BigInteger("8326445093271549824986317")).modulo(new BigInteger("8235329764373457")).compare(new BigInteger("2739574529170425")) === 0);
+console.assert((new BigInteger("3324094572302349474629238")).modulo(new BigInteger("2355463456645787980")).compare(new BigInteger("944770484040977778")) === 0);
+console.assert((new BigInteger("46598234734957437345")).modulo(new BigInteger("98340063749944")).compare(new BigInteger("90547237722777")) === 0);
+console.assert((new BigInteger("225094688443758234773948532")).modulo(new BigInteger("576388348357322834364352")).compare(new BigInteger("303232584402329371851252")) === 0);
+
+
+/** Test pow(...) **/
+
+// Test with non-zero base and exponent of zero.
+console.assert(BigInteger.TEN.pow(0).compare(BigInteger.ONE) === 0);
+
+// Test with base of zero and non-zero exponent.
+console.assert(BigInteger.ZERO.pow(10).compare(BigInteger.ZERO) === 0);
+
+// Test zero raised to the zero.
+console.assert(BigInteger.ZERO.pow(0).compare(BigInteger.ONE) === 0);
+
+// Additional tests.
+console.assert(BigInteger.TWO.pow(64).compare(new BigInteger("18446744073709551616")) === 0);
+console.assert((new BigInteger(1234)).pow(10).compare(new BigInteger("8187505353567209228244052427776")) === 0);
+console.assert((new BigInteger(1002030)).pow(7).compare(new BigInteger("1014296832285033013205252695154427870000000")) === 0);
+
+
+/** Test modPow(...) **/
+
+// Test with a base of zero. Result should be 0 unless the exponent is 0.
+console.assert(BigInteger.ZERO.modPow(BigInteger.TEN, BigInteger.THREE).compare(BigInteger.ZERO) === 0);
+
+// Test with a base and exponent of zero. Result should be 1 regardless of modulus.
+console.assert(BigInteger.ZERO.modPow(BigInteger.ZERO, new BigInteger("1000000000000")).compare(BigInteger.ONE) === 0);
+
+// Test with small numbers.
+console.assert((new BigInteger(1234)).modPow(new BigInteger(100), new BigInteger(5675)).compare(new BigInteger(2976)) === 0);
+console.assert((new BigInteger(34152124)).modPow(new BigInteger(132434), new BigInteger(98434562)).compare(new BigInteger(45277914)) === 0);
+console.assert((new BigInteger(678753365)).modPow(new BigInteger(1244687965), new BigInteger(343679864)).compare(new BigInteger(72297501)) === 0);
+
+// Test with large numbers.
+console.assert((new BigInteger('2430957173853042962243656')).modPow(new BigInteger('987342561893547832'), new BigInteger('5983475872376235874569843')).compare(new BigInteger('905570691752001406787623')) === 0);
+console.assert((new BigInteger('19835634509568237234940045')).modPow(new BigInteger('8937526649545345000003247328'), new BigInteger('673578234651248345983472834')).compare(new BigInteger('350736991726113048455882751')) === 0);
+console.assert((new BigInteger('450924756723458456900128335734590483672')).modPow(new BigInteger('66657859236735983457291912483475345322'), new BigInteger('98870002362348234612002347384')).compare(new BigInteger('6527423847839304886258924072')) === 0);
+
+
+/** Test isEven() **/
 
 // Test with zero.
 console.assert(BigInteger.ZERO.isEven());
@@ -1215,6 +1329,42 @@ console.assert((new BigInteger("123456789098765432")).isEven());
 
 // Test with multi-digit odd number.
 console.assert(!(new BigInteger("98765432123456789")).isEven());
+
+
+/** Test isZero() **/
+
+// Test with zero.
+console.assert(BigInteger.ZERO.isZero());
+
+// Test with a positive number.
+console.assert(!BigInteger.ONE.isZero());
+
+// Test with a positive number.
+console.assert(!BigInteger.NEGATIVE_ONE.isZero());
+
+
+/** Test abs() **/
+
+// Test with zero.
+console.assert(BigInteger.ZERO.abs().compare(BigInteger.ZERO) === 0);
+
+// Test with a positive number.
+console.assert(BigInteger.ONE.abs().compare(BigInteger.ONE) === 0);
+
+// Test with a negative number.
+console.assert(BigInteger.NEGATIVE_ONE.abs().compare(BigInteger.ONE) === 0);
+
+
+/** Test negate() **/
+
+// Test that negate has no effect on zero.
+console.assert(BigInteger.ZERO.negate().compare(BigInteger.ZERO) === 0);
+
+// Test with a positive number.
+console.assert(BigInteger.ONE.negate().compare(BigInteger.NEGATIVE_ONE) === 0);
+
+// Test with a negative number. m
+console.assert(BigInteger.NEGATIVE_ONE.negate().compare(BigInteger.ONE) === 0);
 
 
 /** Test isPrime() **/
