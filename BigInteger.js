@@ -173,34 +173,44 @@ BigInteger.random = function(limit) {
 
 
 /**
- * Returns the larger of two BigIntegers.
+ * Returns the largest of a number of BigIntegers.
  *
- * @param {BigInteger} first The first BigInteger.
- * @param {BigInteger} second The second BigInteger.
+ * @param {BigInteger} A variable number of BigIntegers. At least one must be passed.
  *
- * @return {BigInteger} The first BigInteger if it is greater than the second, otherwise returns the
- *     second BigInteger.
+ * @return {BigInteger} The largest BigInteger that was passed to the function.
  */
-BigInteger.max = function(first, second) {
-    if (first.compare(second) > 0)
-        return first;
-    return second;
+BigInteger.max = function() {
+    if (arguments.length === 0)
+        throw "No arguments passed.";
+
+    var largest = arguments[0];
+
+    for (var i = 1; i < arguments.length; i++) {
+        if (arguments[i].compare(largest) > 0)
+            largest = arguments[i];
+    }
+    return largest;
 }
 
 
 /**
- * Returns the smaller of two BigIntegers.
+ * Returns the smallest of a number of BigIntegers.
  *
- * @param {BigInteger} first The first BigInteger.
- * @param {BigInteger} second The second BigInteger.
+ * @param {BigInteger} A variable number of BigIntegers. At least one must be passed.
  *
- * @return {BigInteger} The first BigInteger if it is less than the second, otherwise returns the
- *     second BigInteger.
+ * @return {BigInteger} The smallest BigInteger that was passed to the function.
  */
-BigInteger.min = function(first, second) {
-    if (first.compare(second) < 0)
-        return first;
-    return second;
+BigInteger.min = function() {
+    if (arguments.length === 0)
+        throw "No arguments passed.";
+
+    var smallest = arguments[0];
+
+    for (var i = 1; i < arguments.length; i++) {
+        if (arguments[i].compare(smallest) < 0)
+            smallest = arguments[i];
+    }
+    return smallest;
 }
 
 
@@ -1275,6 +1285,9 @@ console.assert(numNeg5E6.isLessThan(numNeg800));
 
 /** Test max(...) **/
 
+// Test with a single argument.
+console.assert(BigInteger.max(new BigInteger("1234567890")).compare(new BigInteger("1234567890")) === 0);
+
 // Test two equal numbers.
 console.assert(BigInteger.max(new BigInteger("1234567890"), new BigInteger("1234567890")).compare(new BigInteger("1234567890")) === 0);
 
@@ -1290,8 +1303,14 @@ console.assert(BigInteger.max(new BigInteger("-56789"), new BigInteger("-1234567
 // Test a negative and a positive.
 console.assert(BigInteger.max(new BigInteger("-56789"), new BigInteger("45")).compare(new BigInteger("45")) === 0);
 
+// Test with more than two arguments.
+console.assert(BigInteger.max(new BigInteger("-56789"), new BigInteger("4500"), new BigInteger("67000000")).compare(new BigInteger("67000000")) === 0);
+
 
 /** Test min(...) **/
+
+// Test with a single argument.
+console.assert(BigInteger.min(new BigInteger("1234567890")).compare(new BigInteger("1234567890")) === 0);
 
 // Test two equal numbers.
 console.assert(BigInteger.min(new BigInteger("1234567890"), new BigInteger("1234567890")).compare(new BigInteger("1234567890")) === 0);
@@ -1307,6 +1326,9 @@ console.assert(BigInteger.min(new BigInteger("-56789"), new BigInteger("-1234567
 
 // Test a negative and a positive.
 console.assert(BigInteger.min(new BigInteger("-56789"), new BigInteger("45")).compare(new BigInteger("-56789")) === 0);
+
+// Test with more than two arguments.
+console.assert(BigInteger.min(new BigInteger("-56789"), new BigInteger("4500"), new BigInteger("67000000")).compare(new BigInteger("-56789")) === 0);
 
 
 /** Test add(...) **/
