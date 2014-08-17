@@ -19,10 +19,10 @@ function BigInteger(number, negative) {
     // The base of the BigInteger. Each digit cannot be larger than this base. A base of 1,000,000
     // was chosen because 1,000,000 ^ 2 still fits nicely into a native Number object (useful for
     // multiplication).
-    this.base = 1000000;
+    this.base = BASE;
 
     // The base 10 logarithm of the base.
-    this.logbase = 6;
+    this.logbase = LOG_BASE;
 
     // Null or undefined parameters results in a BigInteger of 0.
     if (number === null || number === undefined) {
@@ -39,18 +39,11 @@ function BigInteger(number, negative) {
         if (number.charAt(0) === '-') {
             number = number.substr(1);
             this.negative = true;
-        } else {
+        } else
             this.negative = false;
-        }
 
         // Check if the number is simply zero.
-        if ((function(str){
-            for (var i = 0; i < str.length; i++) {
-                if (str.charAt(i) !== '0')
-                    return false;
-            }
-            return true;
-        })(number)) {
+        if (representsZero(number)) {
             this.digits = [];
             this.negative = false;
             return;
@@ -92,6 +85,8 @@ function BigInteger(number, negative) {
     }
 }
 
+var BASE = 1000000;
+var LOG_BASE = 6;
 
 // Useful, common constants.
 BigInteger.ZERO = new BigInteger();
@@ -101,8 +96,37 @@ BigInteger.THREE = new BigInteger(3);
 BigInteger.TEN = new BigInteger(10)
 BigInteger.NEGATIVE_ONE = new BigInteger(-1);
 
+BigInteger.BASE = new BigInteger(BASE);
+
 // Maximum native integer.
 BigInteger.MAX_NATIVE = new BigInteger(9007199254740992);
+
+
+/**
+ * Helper function that removes the leading zeros from the digit array of a BigInteger.
+ *
+ * @param {BigInteger} number The BigInteger to be stripped.
+ */
+function stripLeadingZeroDigits(number) {
+    while (number.digits[number.digits.length - 1] === 0)
+        number.digits.length--;
+}
+
+
+/**
+ * Helper function that determines if a string is empty or composed only of zeros.
+ *
+ * @param  {String} str The string to check.
+ *
+ * @return {Boolean} True if the string is empty or composed only of zeroes, false otherwise.
+ */
+function representsZero(str) {
+    for (var i = 0; i < str.length; i++) {
+        if (str.charAt(i) !== '0')
+            return false;
+    }
+    return true;
+}
 
 
 /**
@@ -129,7 +153,6 @@ BigInteger.random = function(limit) {
 
     // Put a random number in every digit of the BigInteger.
     randDigits[randDigits.length - 1] = randomNumber(limit.digits[limit.digits.length - 1]);
-
     for (var i = 0; i < randDigits.length - 1; i++)
         randDigits[i] = randomNumber(limit.base);
 
@@ -143,29 +166,114 @@ BigInteger.random = function(limit) {
 
 
 /**
+ * Creates a new BigInteger from a string in the specified base from 2 to 36.
+ *
+ * @param  {String} str The string representation of the number.
+ * @param  {Number} base The base of the number represented by this string. Must be in the range
+ *     [2, 36].
+ *
+ * @return {BigInteger} A BigInteger with equivalent value of str.
+ */
+BigInteger.valueOf = function(str, base) {
+
+    // Check for zero.
+    if(representsZero(str))
+        return BigInteger.ZERO;
+
+    // Result where the value of the BigInteger is stored.
+    var result = BigInteger.ZERO;
+
+    // Check if the number is negative.
+    if (str.charAt(0) === '-') {
+        str = str.substr(1);
+        result.negative = true;
+    } else
+        result.negative = false;
+
+    // BigInteger value of the base.
+    var bigBase = new BigInteger(base);
+
+    // Multiplier for each digit in str.
+    var multiplier = BigInteger.ONE;
+
+    for (var i = 0; i < str.length; i++) {
+
+        // Create a BigInteger from the current digit.
+        var bigDigit = new BigInteger((function(digit) {
+                if (!isNaN(digit))
+                    return parseInt(digit);
+                digit = digit.toUpperCase();
+                return "ABCDEFGHIJKLMNOPQRSTUVWXYZ".indexOf(digit) + 10;
+            })(str.charAt(str.length - 1 - i))));
+
+        // If the digit is not zero, add the digit times the multipier to the result.
+        if (!bigDigit.isZero())
+            result = result.add(bigDigit.multiply(multiplier));
+
+        // Multiply the multiplier by the base.
+        multiplier = multiplier.multiply(bigBase);
+    }
+
+    return result;
+}
+
+
+/**
  * Converts the value of this BigInteger to a string.
  *
  * @return {String} A String representation of this BigInteger.
  */
-BigInteger.prototype.toString = function() {
+BigInteger.prototype.toString = function(base) {
 
-    // If the BigInteger was constructed from a string, simply return that.
-    if (this.numberString !== null)
+    // Check for null or out of range.
+    if (base === null || base < 2 || base > 36)
+        throw 'Base not in acceptable range of [2, 36]';
+
+    // Check for a value of zero.
+    if (this.isZero()) {
+        this.numberString = '0';
         return this.numberString;
-
-    // Return zero for a BigInteger with an empty digit array.
-    if (this.digits.length === 0)
-        return "0";
-
-    // If the BigInteger was constructed with an Array of digits, the string must be built manually.
-    var string = "";
-    for (var i = 0; i < this.digits.length - 1; i++) {
-        var digitString = (this.digits[i] + this.base).toString();
-        string = digitString.substr(1, digitString.length) + string;
     }
-    string = this.digits[this.digits.length - 1] + string;
 
-    return (this.negative ? "-" : "") + string;
+    // Default displays in decimal.
+    if (base === undefined || base === 10) {
+
+        // If the BigInteger was constructed from a string, simply return that.
+        if (this.numberString !== null)
+            return this.numberString;
+
+        // If the BigInteger was constructed with an Array of digits, the string must be built manually.
+        this.numberString = "";
+        for (var i = 0; i < this.digits.length - 1; i++) {
+            var digitString = (this.digits[i] + this.base).toString();
+            this.numberString = digitString.substr(1, digitString.length) + this.numberString;
+        }
+        this.numberString = (this.negative ? "-" : "") + this.digits[this.digits.length - 1]
+            + this.numberString;
+
+        return this.numberString;
+    }
+
+    var str = '';
+    var currentValue = this;
+    var bigBase = new BigInteger(base);
+
+    while (currentValue.compare(BigInteger.ZERO) > 0) {
+
+        // Get the string representation of the next digit.
+        var newDigit = (function(digit) {
+                if (digit < 10)
+                    return digit.toString();
+                return 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(digit - 10);
+            })(currentValue.modulo(bigBase).toNumber());
+
+        // Update the current value.
+        currentValue = currentValue.divide(bigBase);
+
+        // Prepend the digit to the string.
+        str = newDigit + str;
+    }
+    return str;
 }
 
 
@@ -207,6 +315,19 @@ BigInteger.prototype.negate = function() {
  */
 BigInteger.prototype.isZero = function() {
     return this.digits.length === 0;
+}
+
+
+/**
+ * Convenience method that indicates whether or not this BigInteger is even. Significantly
+ * cheaper than performing BigInteger.modulo(2).
+ *
+ * @return {Boolean} True if this BigInteger is even, false if it is odd.
+ */
+BigInteger.prototype.isEven = function() {
+    if (this.isZero())
+        return true;
+    return (this.digits[0] % 2 === 0);
 }
 
 
@@ -426,17 +547,6 @@ BigInteger.prototype.subtract = function(other) {
 
 
 /**
- * Helper function that removes the leading zeros from the digit array of a BigInteger.
- *
- * @param {BigInteger} number The BigInteger to be stripped.
- */
-function stripLeadingZeroDigits(number) {
-    while (number.digits[number.digits.length - 1] === 0)
-        number.digits.length--;
-}
-
-
-/**
  * Calculates the product of this BigInteger multiplied by another.
  *
  * @param {BigInteger} other The BigInteger by which this one will be multiplied.
@@ -493,39 +603,6 @@ function multiplyOneDigit(number, digit, magnitude) {
         newDigits.length = newDigits.length - 1;
 
     return new BigInteger(newDigits);
-}
-
-
-/**
- * Calculates this BigInteger raised to the power of a number.
- *
- * @param {Number} exponent The exponent.
- *
- * @return {BigInteger} The result.
- */
-BigInteger.prototype.pow = function(exponent) {
-
-    /**
-     * Calculates the result of one BigInteger raised to the power of a number using the
-     * exponentiation by squaring method.
-     *
-     * @param  {BigInteger} base The base.
-     * @param  {Number} exponent The exponent.
-     *
-     * @return {BigInteger} The result.
-     */
-    var exponentiationBySquaring = function(base, exponent) {
-        if (exponent === 0)
-            return BigInteger.ONE;
-        else if (exponent === 1)
-            return base;
-        else if (exponent % 2 === 0)
-            return exponentiationBySquaring(base.multiply(base), exponent / 2);
-        else
-            return base.multiply(exponentiationBySquaring(base.multiply(base), (exponent - 1) / 2));
-    }
-
-    return exponentiationBySquaring(this, exponent);
 }
 
 
@@ -626,13 +703,13 @@ function firstTwoDigits(number) {
  */
 BigInteger.prototype.divide = function(other) {
 
-    // Create a new clone of the dividend (this) for use in the algorithm.
-    var dividend = new BigInteger(this.digits, false);
-    var divisor = new BigInteger(other.digits, false);
+    // Create positive versions of this and other.
+    var dividend = this.abs();
+    var divisor = other.abs();
 
     // If the dividend is less than the divisor, zero can be immediately returned.
     if (dividend.compare(divisor) < 0)
-        return new BigInteger("0");
+        return BigInteger.ZERO;
 
     // If the dividend is less than the value of the maximum JS number, primitive
     // division can be used. Note that 'this' and 'other' are used instead of
@@ -726,9 +803,9 @@ BigInteger.prototype.divide = function(other) {
  */
 BigInteger.prototype.modulo = function(other) {
 
-    // Create a new clone of the dividend (this) for use in the algorithm.
-    var dividend = new BigInteger(this.digits, false);
-    var divisor = new BigInteger(other.digits, false);
+    // Create positive versions of this and other.
+    var dividend = this.abs();
+    var divisor = other.abs();
 
     // If the dividend is less than the divisor, simply return the dividend.
     if (dividend.compare(divisor) < 0)
@@ -814,43 +891,61 @@ BigInteger.prototype.modulo = function(other) {
 
 
 /**
- * Convenience method that indicates whether or not this BigInteger is even. Significantly
- * cheaper than performing BigInteger.modulo(2).
+ * Calculates this BigInteger raised to the power of a number.
  *
- * @return {Boolean} True if this BigInteger is even, false if it is odd.
+ * @param {Number} exponent The exponent.
+ *
+ * @return {BigInteger} The result.
  */
-BigInteger.prototype.isEven = function() {
-    if (this.digits.length === 0)
-        return true;
-    return (this.digits[0] % 2 === 0);
+BigInteger.prototype.pow = function(exponent) {
+
+    /**
+     * Calculates the result of one BigInteger raised to the power of a number using the
+     * exponentiation by squaring method.
+     *
+     * @param  {BigInteger} base The base.
+     * @param  {Number} exponent The exponent.
+     *
+     * @return {BigInteger} The result.
+     */
+    var exponentiationBySquaring = function(base, exponent) {
+        if (exponent === 0)
+            return BigInteger.ONE;
+        if (exponent === 1)
+            return base;
+        if (exponent % 2 === 0)
+            return exponentiationBySquaring(base.multiply(base), exponent / 2);
+        return base.multiply(exponentiationBySquaring(base.multiply(base), (exponent - 1) / 2));
+    }
+
+    return exponentiationBySquaring(this, exponent);
 }
 
 
 /**
  * Calculates the modulus of this BigInteger raised to some power.
  *
- * @param  {BigInteger} exponent The exponent to which this BigInteger is raised.
- * @param  {BigInteger} modulus  The modulus.
+ * @param {BigInteger} exponent The exponent to which this BigInteger is raised.
+ * @param {BigInteger} modulus The modulus.
  *
  * @return {BigInteger} The result of the modPow operation.
  */
 BigInteger.prototype.modPow = function(exponent, modulus) {
 
-    var x = BigInteger.ONE;
-    var a = this;
-    var e = exponent;
+    var result = BigInteger.ONE;
+    var base = this;
 
-    while (e.compare(BigInteger.ZERO) > 0) {
-        if (e.isEven()) {
-            a = a.multiply(a).modulo(modulus);
-            e = divideByNativeNumber(e, 2);
+    while (exponent.compare(BigInteger.ZERO) > 0) {
+        if (exponent.isEven()) {
+            base = base.multiply(base).modulo(modulus);
+            exponent = exponent.divide(BigInteger.TWO);
         } else {
-            x = x.multiply(a).modulo(modulus);
-            e = e.subtract(BigInteger.ONE);
+            result = result.multiply(base).modulo(modulus);
+            exponent = exponent.subtract(BigInteger.ONE);
         }
     }
 
-    return x;
+    return result;
 }
 
 
@@ -860,7 +955,7 @@ BigInteger.prototype.modPow = function(exponent, modulus) {
  * indicates that the number is definitely composite, but true does not necessarily mean it is
  * prime.
  *
- * @param  {Number}  witnessLoops The number of witness loops through which to iterate. More loops
+ * @param {Number} witnessLoops The number of witness loops through which to iterate. More loops
  *    reduce the chance of incorrectly identifying composite numbers as prime.
  *
  * @return {Boolean} True if the number is probably prime, false otherwise.
@@ -872,8 +967,11 @@ BigInteger.prototype.isPrime = function(witnessLoops) {
             || witnessLoops < 1))
         throw "Number of witness loops must be a positive integer."
 
+    // Return false for any value equal to or below 1.
     if (this.compare(BigInteger.ONE) <= 0)
         return false;
+
+    // Return true for a value of 2 or 3.
     if (this.compare(BigInteger.THREE) <= 0)
         return true;
 
@@ -892,7 +990,7 @@ BigInteger.prototype.isPrime = function(witnessLoops) {
 
     // Factor out power of two from the number.
     while (d.isEven()) {
-        d = divideByNativeNumber(d, 2);
+        d = d.divide(BigInteger.TWO);
         count++;
     }
 
