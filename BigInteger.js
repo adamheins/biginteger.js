@@ -173,6 +173,38 @@ BigInteger.random = function(limit) {
 
 
 /**
+ * Returns the larger of two BigIntegers.
+ *
+ * @param {BigInteger} first The first BigInteger.
+ * @param {BigInteger} second The second BigInteger.
+ *
+ * @return {BigInteger} The first BigInteger if it is greater than the second, otherwise returns the
+ *     second BigInteger.
+ */
+BigInteger.max = function(first, second) {
+    if (first.compare(second) > 0)
+        return first;
+    return second;
+}
+
+
+/**
+ * Returns the smaller of two BigIntegers.
+ *
+ * @param {BigInteger} first The first BigInteger.
+ * @param {BigInteger} second The second BigInteger.
+ *
+ * @return {BigInteger} The first BigInteger if it is less than the second, otherwise returns the
+ *     second BigInteger.
+ */
+BigInteger.min = function(first, second) {
+    if (first.compare(second) < 0)
+        return first;
+    return second;
+}
+
+
+/**
  * Creates a new BigInteger from a string in the specified base from 2 to 36.
  *
  * @param  {String} str The string representation of the number.
@@ -407,6 +439,42 @@ BigInteger.prototype.compare = function (other) {
     }
 
     return 0;
+}
+
+
+/**
+ * Convenience method for testing equality of this BigInteger and another one.
+ *
+ * @param {BigInteger} other The BigInteger to which to compare this one.
+ *
+ * @return {Boolean} True if this BigInteger and 'other' are equal, false otherwise.
+ */
+BigInteger.prototype.equals = function(other) {
+    return this.compare(other) === 0;
+}
+
+
+/**
+ * Convenience method for testing if this BigInteger is greater than another one.
+ *
+ * @param {BigInteger} other The BigInteger to which to compare this one.
+ *
+ * @return {Boolean} True if this BigInteger is greater than 'other', false otherwise.
+ */
+BigInteger.prototype.isGreaterThan = function(other) {
+    return this.compare(other) > 0;
+}
+
+
+/**
+ * Convenience method for testing if this BigInteger is less than another one.
+ *
+ * @param {BigInteger} other The BigInteger to which to compare this one.
+ *
+ * @return {Boolean} True if this BigInteger is less than 'other', false otherwise.
+ */
+BigInteger.prototype.isLessThan = function(other) {
+    return this.compare(other) < 0;
 }
 
 
@@ -816,9 +884,10 @@ BigInteger.prototype.divide = function(other) {
 
 
 /**
- * Calculates the result of this BigInteger modulo another BigInteger.
+ * Calculates the result of this BigInteger modulo another BigInteger. The result is always positive
+ * regardless of the signs of the dividend or divisor.
  *
- * @param  {BigInteger} other The modulus.
+ * @param  {BigInteger} other The modulus. Cannot be zero.
  *
  * @return {BigInteger} The result.
  */
@@ -840,7 +909,7 @@ BigInteger.prototype.modulo = function(other) {
     // used. Note that 'this' and 'other' are used instead of 'dividend' and 'divisor' to maintain
     // sign value.
     if (dividend.compare(BigInteger.MAX_NATIVE) < 0)
-        return new BigInteger(Math.floor(this.toNumber() % other.toNumber()));
+        return new BigInteger(Math.floor(Math.abs(this.toNumber() % other.toNumber())));
 
     // If the divisor is smaller than a single digit, we can use a simpler function to calculate the
     // remainder.
@@ -1165,6 +1234,81 @@ console.assert(numNeg9E6.compare(numNeg5E6) < 0);
 console.assert(numNeg5E6.compare(numNeg800) < 0);
 
 
+/** Test equals(...) **/
+
+// Test === with positive number, multiple digits.
+console.assert(num9E6.equals(new BigInteger("9000000")));
+
+// Test === with negative number, multiple digits.
+console.assert(numNeg9E6.equals(new BigInteger("-9000000")));
+
+
+/** Test isGreaterThan(...) **/
+
+// Test > with positive numbers, same order of magnitude.
+console.assert(num9E6.isGreaterThan(num5E6));
+
+// Test > with positive numbers, different orders of magnitude.
+console.assert(num5E6.isGreaterThan(num800));
+
+// Test > with negative numbers, same order of magnitude.
+console.assert(numNeg5E6.isGreaterThan(numNeg9E6));
+
+// Test > with negative numbers, different orders of magnitude.
+console.assert(numNeg800.isGreaterThan(numNeg5E6));
+
+
+/** Test isLessThan(...) **/
+
+// Test < with positive numbers, same order of magnitude.
+console.assert(num5E6.isLessThan(num9E6));
+
+// Test < with positive numbers, different orders of magnitude.
+console.assert(num800.isLessThan(num5E6));
+
+// Test < with negative numbers, same order of magnitude.
+console.assert(numNeg9E6.isLessThan(numNeg5E6));
+
+// Test < with negative numbers, different orders of magnitude.
+console.assert(numNeg5E6.isLessThan(numNeg800));
+
+
+/** Test max(...) **/
+
+// Test two equal numbers.
+console.assert(BigInteger.max(new BigInteger("1234567890"), new BigInteger("1234567890")).compare(new BigInteger("1234567890")) === 0);
+
+// Test two positives, with the first greater.
+console.assert(BigInteger.max(new BigInteger("1234567890"), new BigInteger("123456789")).compare(new BigInteger("1234567890")) === 0);
+
+// Test two positives, with the second greater.
+console.assert(BigInteger.max(new BigInteger("56789"), new BigInteger("123456789")).compare(new BigInteger("123456789")) === 0);
+
+// Test two negatives, with the first greater.
+console.assert(BigInteger.max(new BigInteger("-56789"), new BigInteger("-123456789")).compare(new BigInteger("-56789")) === 0);
+
+// Test a negative and a positive.
+console.assert(BigInteger.max(new BigInteger("-56789"), new BigInteger("45")).compare(new BigInteger("45")) === 0);
+
+
+/** Test min(...) **/
+
+// Test two equal numbers.
+console.assert(BigInteger.min(new BigInteger("1234567890"), new BigInteger("1234567890")).compare(new BigInteger("1234567890")) === 0);
+
+// Test two positives, with the second less than the first.
+console.assert(BigInteger.min(new BigInteger("1234567890"), new BigInteger("123456789")).compare(new BigInteger("123456789")) === 0);
+
+// Test two positives, with the first less than the second.
+console.assert(BigInteger.min(new BigInteger("56789"), new BigInteger("123456789")).compare(new BigInteger("56789")) === 0);
+
+// Test two negatives, with the second less than the first.
+console.assert(BigInteger.min(new BigInteger("-56789"), new BigInteger("-123456789")).compare(new BigInteger("-123456789")) === 0);
+
+// Test a negative and a positive.
+console.assert(BigInteger.min(new BigInteger("-56789"), new BigInteger("45")).compare(new BigInteger("-56789")) === 0);
+
+
 /** Test add(...) **/
 
 // Test addition with two positive numbers.
@@ -1270,7 +1414,7 @@ console.assert(num7E16.modulo(num7E16).compare(BigInteger.ZERO)  === 0);
 console.assert(num2E16.modulo(num7E16).compare(num2E16)  === 0);
 
 // Test with a negative number.
-console.assert((new BigInteger("-1234567890")).modulo(new BigInteger(4545454)).compare(new BigInteger(-2749856)) === 0);
+console.assert((new BigInteger("-1234567890")).modulo(new BigInteger(4545454)).compare(new BigInteger(2749856)) === 0);
 
 // Test with large numbers.
 console.assert((new BigInteger("135546343434234528")).modulo(new BigInteger("54657342556")).compare(new BigInteger("14566676004")) === 0);
@@ -1426,6 +1570,8 @@ console.assert((new BigInteger("43143988327398957279342419750374600193")).isPrim
 console.assert((new BigInteger("35742549198872617291353508656626642567")).isPrime());
 console.assert((new BigInteger("393050634124102232869567034555427371542904833")).isPrime());
 console.assert((new BigInteger("359334085968622831041960188598043661065388726959079837")).isPrime());
+
+
 
 
 console.log("Testing complete.");
