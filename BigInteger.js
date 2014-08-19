@@ -16,11 +16,6 @@
  */
 function BigInteger(number, negative) {
 
-    // The base of the BigInteger. Each digit cannot be larger than this base. A base of 1,000,000
-    // was chosen because 1,000,000 ^ 2 still fits nicely into a native Number object (useful for
-    // multiplication).
-    this.base = 1000000;
-
     // The base 10 logarithm of the base.
     var logbase = 6;
 
@@ -73,8 +68,8 @@ function BigInteger(number, negative) {
         this.digits = [];
 
         while (number > 0) {
-            this.digits.push(number % this.base);
-            number = Math.floor(number / this.base);
+            this.digits.push(number % BigInteger.BASE);
+            number = Math.floor(number / BigInteger.BASE);
         }
 
     // Number is an array of digits.
@@ -83,17 +78,13 @@ function BigInteger(number, negative) {
         this.negative = negative;
         this.numberString = null;
     }
-
-    //TODO implement properly
-    this.isNegative = function() {
-        return this.negative;
-    }
-
-    this.getBase = function() {
-        return this.base;
-    }
 }
 
+
+// The base of the BigInteger. Each digit cannot be larger than this base. A base of 1,000,000
+// was chosen because 1,000,000 ^ 2 still fits nicely into a native Number object (useful for
+// multiplication).
+BigInteger.BASE = 1000000;
 
 // Useful, common constants.
 BigInteger.ZERO = new BigInteger();
@@ -103,7 +94,8 @@ BigInteger.THREE = new BigInteger(3);
 BigInteger.TEN = new BigInteger(10)
 BigInteger.NEGATIVE_ONE = new BigInteger(-1);
 
-BigInteger.BASE = new BigInteger(1000000);
+// A BigInteger representation of the base.
+BigInteger.BASE_AS_BIGINTEGER = new BigInteger(1000000);
 
 // Maximum native integer.
 BigInteger.MAX_NATIVE = new BigInteger(9007199254740992);
@@ -161,7 +153,7 @@ BigInteger.random = function(limit) {
     // Put a random number in every digit of the BigInteger.
     randDigits[randDigits.length - 1] = randomNumber(limit.digits[limit.digits.length - 1]);
     for (var i = 0; i < randDigits.length - 1; i++)
-        randDigits[i] = randomNumber(limit.base);
+        randDigits[i] = randomNumber(BigInteger.BASE);
 
     var randomBigInteger = new BigInteger(randDigits, false);
 
@@ -294,7 +286,7 @@ BigInteger.prototype.toString = function(base) {
         // If the BigInteger was constructed with an Array of digits, the string must be built manually.
         this.numberString = "";
         for (var i = 0; i < this.digits.length - 1; i++) {
-            var digitString = (this.digits[i] + this.base).toString();
+            var digitString = (this.digits[i] + BigInteger.BASE).toString();
             this.numberString = digitString.substr(1, digitString.length) + this.numberString;
         }
         this.numberString = (this.negative ? "-" : "") + this.digits[this.digits.length - 1]
@@ -341,7 +333,7 @@ BigInteger.prototype.toNumber = function() {
 
     for (var i = 0; i < this.digits.length; i++) {
         value += this.digits[i] * multiplier;
-        multiplier *= this.base;
+        multiplier *= BigInteger.BASE;
     }
 
     return (this.negative ? -1 : 1) * value;
@@ -510,24 +502,23 @@ BigInteger.prototype.add = function(other) {
      *
      * @return {BigInteger} The sum of the two BigIntegers.
      */
-    var longAddition = function(firstNumber, secondNumber) {
+    var longAddition = function(first, second) {
         var newDigits = [];
 
-        var numDigits = Math.max(firstNumber.digits.length, secondNumber.digits.length);
+        var numDigits = Math.max(first.digits.length, second.digits.length);
         var carry = 0;
 
         for (var i = 0; i < numDigits; i++) {
             var result;
-            if (i >= firstNumber.digits.length)
-                result = secondNumber.digits[i] + carry;
-            else if (i >= secondNumber.digits.length)
-                result = firstNumber.digits[i] + carry;
+            if (i >= first.digits.length)
+                result = second.digits[i] + carry;
+            else if (i >= second.digits.length)
+                result = first.digits[i] + carry;
             else
-                result = firstNumber.digits[i] + secondNumber.digits[i] + carry;
+                result = first.digits[i] + second.digits[i] + carry;
 
-            carry = Math.floor(result / firstNumber.base);
-            result = result % firstNumber.base;
-            newDigits[i] = result;
+            carry = Math.floor(result / BigInteger.BASE);
+            newDigits[i] = result % BigInteger.BASE;
         }
 
         // Add an extra digit if the carry is not zero.
@@ -591,7 +582,7 @@ BigInteger.prototype.subtract = function(other) {
 
         // Compute the complement of the subtrahend.
         for (var i = 0; i < subtrahend.digits.length; i++)
-            complement.digits[i] = minuend.base - 1 - subtrahend.digits[i];
+            complement.digits[i] = BigInteger.BASE - 1 - subtrahend.digits[i];
 
         // Add this and complement.
         var result = minuend.add(complement);
@@ -687,8 +678,8 @@ function multiplyOneDigit(number, digit, magnitude) {
     // Perform long multiplication on the number.
     for (var i = 0; i < number.digits.length; i++) {
         var result = digit * number.digits[i] + carry;
-        carry = Math.floor(result / number.base);
-        result = Math.floor(result % number.base);
+        carry = Math.floor(result / BigInteger.BASE);
+        result = Math.floor(result % BigInteger.BASE);
         newDigits[i + magnitude] = result;
     }
 
@@ -705,7 +696,7 @@ function multiplyOneDigit(number, digit, magnitude) {
 /**
  * Calculates the quotient of a BigInteger divided by a native JS Number object.
  * The number should be at most equal to the maximum value of base * carry + digit,
- * which means it is less than BigInteger.base squared.
+ * which means it is less than BigInteger.BASE squared.
  *
  * @param  {BigIngteger} bigIntegerDividend The BigInteger to be divided.
  * @param  {Number} number The number by which the BigInteger is to be divided.
@@ -727,7 +718,7 @@ function divideByNativeNumber(bigIntegerDividend, number) {
 
     // Perform long division.
     for (var i = quotient.length - 1; i >= 0; i--){
-        var result = bigIntegerDividend.base * carry + bigIntegerDividend.digits[i];
+        var result = BigInteger.BASE * carry + bigIntegerDividend.digits[i];
         quotient[i] = Math.floor(result / number);
         carry = result % number;
     }
@@ -760,8 +751,8 @@ function trialDigit(dividend, firstTwoDivisorDigits, useThreeDigits) {
 
     var firstTwoDividendDigits = firstTwoDigits(dividend);
     if (useThreeDigits && dividend.digits.length > 2) {
-        firstTwoDivisorDigits /= dividend.base;
-        firstTwoDividendDigits += dividend.digits[dividend.digits.length - 3] / dividend.base;
+        firstTwoDivisorDigits /= BigInteger.BASE;
+        firstTwoDividendDigits += dividend.digits[dividend.digits.length - 3] / BigInteger.BASE;
     }
 
     return Math.floor(firstTwoDividendDigits / firstTwoDivisorDigits);
@@ -784,7 +775,7 @@ function firstTwoDigits(number) {
 
     var part = number.digits[size - 1];
     if (size > 1)
-        part = part * number.base + number.digits[size - 2];
+        part = part * BigInteger.BASE + number.digits[size - 2];
 
     return part;
 }
@@ -923,11 +914,11 @@ BigInteger.prototype.modulo = function(other) {
 
     // If the divisor is smaller than a single digit, we can use a simpler function to calculate the
     // remainder.
-    if (divisor.compare(new BigInteger(this.base)) < 0)
+    if (divisor.compare(new BigInteger(BigInteger.BASE)) < 0)
         return (function(number, mod){
             var carry = 0;
             for (var i = number.digits.length - 1; i >= 0; i--)
-                carry = (carry * number.base + number.digits[i]) % mod;
+                carry = (carry * BigInteger.BASE + number.digits[i]) % mod;
             return new BigInteger(carry);
         })(this, other.toNumber());
 
