@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Tests for the BigInteger class.
  *
@@ -197,17 +195,28 @@ assertEquals(new BigInteger('-56789'), BigInteger.min(new BigInteger('-56789'),
 
 /** Test add(...) **/
 
-// Test addition with two positive numbers.
+// Test addition with two small numbers.
 assertEquals(new BigInteger('14000000'), new BigInteger(9000000).add(new BigInteger(5000000)));
 
+// Test addition with two larger, positive numbers.
+assertEquals(new BigInteger('140000000000000000'),
+    new BigInteger('90000000000000000').add(new BigInteger('50000000000000000')));
+
 // Test addition with two negative numbers.
-assertEquals(new BigInteger('-14000000'), new BigInteger(-9000000).add(new BigInteger(-5000000)));
+assertEquals(new BigInteger('-140000000000000000'),
+    new BigInteger('-90000000000000000').add(new BigInteger('-50000000000000000')));
 
 // Test addition with negative added to positive.
-assertEquals(new BigInteger('4000000'), new BigInteger(9000000).add(new BigInteger(-5000000)));
+assertEquals(new BigInteger('40000000000000000'),
+    new BigInteger('90000000000000000').add(new BigInteger('-50000000000000000')));
 
 // Test addition with positive added to negative.
-assertEquals(new BigInteger('-4000000'), new BigInteger(-9000000).add(new BigInteger(5000000)));
+assertEquals(new BigInteger('-40000000000000000'),
+    new BigInteger('-90000000000000000').add(new BigInteger('50000000000000000')));
+
+// Test with large, irregular number.
+assertEquals(new BigInteger('24691357802469135780'),
+    (new BigInteger('12345678901234567890')).add(new BigInteger('12345678901234567890')));
 
 
 /** Test subtract(...) **/
@@ -225,19 +234,27 @@ assertEquals(new BigInteger('4000000'), new BigInteger(9000000).subtract(new Big
 assertEquals(new BigInteger('-4000000'), new BigInteger(5000000).subtract(new BigInteger(9000000)));
 
 // Test subtraction with two negative numbers, lesser - greater.
-assertEquals(new BigInteger('-4000000'), new BigInteger(-9000000).subtract(new BigInteger(-5000000)));
+assertEquals(new BigInteger('-4000000'),
+    new BigInteger(-9000000).subtract(new BigInteger(-5000000)));
 
 // Test subtraction with two negative numbers, greater - lesser.
-assertEquals(new BigInteger('4000000'), new BigInteger(-5000000).subtract(new BigInteger(-9000000)));
+assertEquals(new BigInteger('40000000000000000'),
+    new BigInteger('-50000000000000000').subtract(new BigInteger('-90000000000000000')));
 
 // Test subtraction with negative - positive.
-assertEquals(new BigInteger('-14000000'), new BigInteger(-9000000).subtract(new BigInteger(5000000)));
+assertEquals(new BigInteger('-140000000000000000'),
+    new BigInteger('-90000000000000000').subtract(new BigInteger('50000000000000000')));
 
 // Test subtraction with positive - negative.
-assertEquals(new BigInteger('14000000'), new BigInteger(9000000).subtract(new BigInteger(-5000000)));
+assertEquals(new BigInteger('140000000000000000'),
+    new BigInteger('90000000000000000').subtract(new BigInteger('-50000000000000000')));
 
 // Test a number beginning with a 1, minus 1.
 assertEquals(new BigInteger(14999999), (new BigInteger(15000000)).subtract(BigInteger.ONE));
+
+// Test with large, irregular number.
+assertEquals(new BigInteger('12345678901234567890'),
+    (new BigInteger('24691357802469135780')).subtract(new BigInteger('12345678901234567890')));
 
 
 /** Test multiply(...) **/
@@ -246,13 +263,20 @@ assertEquals(new BigInteger(14999999), (new BigInteger(15000000)).subtract(BigIn
 assertEquals(new BigInteger('80000000'), new BigInteger(800).multiply(new BigInteger(100000)));
 
 // Test multiplication with two positive numbers.
-assertEquals(new BigInteger('45000000000000'), new BigInteger(9000000).multiply(new BigInteger(5000000)));
+assertEquals(new BigInteger('45000000000000000000'),
+    new BigInteger(9000000000).multiply(new BigInteger(5000000000)));
 
 // Test multiplication with two negative numbers.
-assertEquals(new BigInteger('45000000000000'), new BigInteger(-9000000).multiply(new BigInteger(-5000000)));
+assertEquals(new BigInteger('45000000000000000000'),
+    new BigInteger(-9000000000).multiply(new BigInteger(-5000000000)));
 
 // Test multiplication with one positive and one negative number.
-assertEquals(new BigInteger('-45000000000000'), new BigInteger(-9000000).multiply(new BigInteger(5000000)));
+assertEquals(new BigInteger('-45000000000000000000'),
+    new BigInteger(-9000000000).multiply(new BigInteger(5000000000)));
+
+// Test with large, irregular number.
+assertEquals(new BigInteger('152415787532374345526722756'),
+    (new BigInteger('12345678901234')).multiply(new BigInteger('12345678901234')));
 
 
 /** Test divide(...) **/
@@ -270,34 +294,43 @@ assertEquals(new BigInteger('50'), new BigInteger(5000000).divide(new BigInteger
 assertEquals(BigInteger.ONE, new BigInteger(9000000).divide(new BigInteger(5000000)));
 
 // Test division with a number larger than Number.MAX_INT, and a divisor which isn't.
-assertEquals(new BigInteger('14000000000'), new BigInteger('70000000000000000').divide(new BigInteger(5000000)));
+assertEquals(new BigInteger('14000000000'),
+    new BigInteger('70000000000000000').divide(new BigInteger(5000000)));
 
 // Repeat the above test with one value negative.
-assertEquals(new BigInteger('-14000000000'), new BigInteger('-70000000000000000').divide(new BigInteger(5000000)));
+assertEquals(new BigInteger('-14000000000'),
+    new BigInteger('-70000000000000000').divide(new BigInteger(5000000)));
 
 // Repeat the above test with both values negative.
-assertEquals(new BigInteger('14000000000'), new BigInteger('-70000000000000000').divide(new BigInteger(-5000000)));
+assertEquals(new BigInteger('14000000000'),
+    new BigInteger('-70000000000000000').divide(new BigInteger(-5000000)));
 
 // Test division with two numbers that are both larger than Number.MAX_INT.
-assertEquals(BigInteger.THREE, new BigInteger('70000000000000000').divide(new BigInteger('20000000000000000')));
+assertEquals(BigInteger.THREE,
+    new BigInteger('70000000000000000').divide(new BigInteger('20000000000000000')));
 
 // Repeat the above test with a negative divisor.
-assertEquals(new BigInteger(-3), new BigInteger('70000000000000000').divide(new BigInteger('-20000000000000000')));
+assertEquals(new BigInteger(-3),
+    new BigInteger('70000000000000000').divide(new BigInteger('-20000000000000000')));
 
 // Test division with a significantly larger dividend.
-assertEquals(new BigInteger(5714), new BigInteger('400000000000000000000').divide(new BigInteger('70000000000000000')));
+assertEquals(new BigInteger(5714),
+    new BigInteger('400000000000000000000').divide(new BigInteger('70000000000000000')));
 
 // Test division with a two numbers that have equal first digits (but do not divide cleanly).
-assertEquals(new BigInteger(9), new BigInteger('20000000000000000').divide(new BigInteger('2000000000001234')));
+assertEquals(new BigInteger(9),
+    new BigInteger('20000000000000000').divide(new BigInteger('2000000000001234')));
 
 
 /** Test modulo(...) **/
 
 // Test modulo with the same number.
-assertEquals(BigInteger.ZERO, new BigInteger('70000000000000000').modulo(new BigInteger('70000000000000000')));
+assertEquals(BigInteger.ZERO,
+    new BigInteger('70000000000000000').modulo(new BigInteger('70000000000000000')));
 
 // Test modulo with smaller number % larger number.
-assertEquals(new BigInteger('20000000000000000'), new BigInteger('20000000000000000').modulo(new BigInteger('70000000000000000')));
+assertEquals(new BigInteger('20000000000000000'),
+    new BigInteger('20000000000000000').modulo(new BigInteger('70000000000000000')));
 
 // Test with a negative number.
 assertEquals(new BigInteger(2749856),
