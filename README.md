@@ -19,3 +19,6 @@ The [Primality Checker](https://github.com/adamheins/primality-checker) is a sma
 
 ## References
 The algorithms for long division and modulo were adapted from [Multiple-Length Division Revisited: A Tour of the Minefield](http://brinch-hansen.net/papers/1994b.pdf) by Per Brinch Hansen. An efficient modular exponentiation algorithm was taken from [Large Prime Numbers](http://people.reed.edu/~jerry/361/lectures/bigprimes.pdf) by Jerry Shurman.
+
+## License
+MIT license. See the included LICENSE file for the full terms.

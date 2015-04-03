@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2015 Adam Heins
+ *
+ * This file is part of the BigInteger.js project, which is distributed under the MIT license.
+ * For the full terms, see the included license file.
+ */
+
 /**
  * Arbitrary-sized integer.
  *
